@@ -16,6 +16,7 @@
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}{Lemma}
+\newtheorem{proposition}{Proposition}
 \newtheorem{remark}{Remark}
 
 \begin{document}
@@ -154,6 +155,21 @@ Under the adaptive reweighted objective, the fused Hessian matrix satisfies:
 Since the 200~Hz IMU continuous pre-integration provides non-degenerate metric acceleration constraints along $\mathbf{e}_x$, $\lambda_{\min}(\mathbf{H}_{\text{IMU}}) \ge \sigma_{\min}^{\text{IMU}} > 0$. Even when $\lambda_{\min}(\mathbf{H}_{\text{LiDAR}}) \to 0$, $\lambda_{\min}(\mathbf{H}_{\text{fused}}) \ge \sigma_{\min}^{\text{IMU}} + \sigma_{\min}^{\text{wheel}} > 0$. Therefore, $\mathbf{H}_{\text{fused}}$ is strictly positive-definite, and the accumulated state drift along corridor axes remains bounded.
 \end{theorem}
 
+\begin{proposition}[Cram\'er-Rao Bound in Degenerate Subspaces]
+Let the Fisher Information Matrix (FIM) for LiDAR-only estimation be $\mathbf{FIM}_L = \mathbf{H}_{\text{LiDAR}}$. In corridors where $\mathbf{e}_x \in \mathcal{N}(\mathbf{H}_{\text{LiDAR}})$, pure LiDAR variance diverges:
+\begin{equation}
+\operatorname{CRLB}(\hat{p}_x) = [\mathbf{FIM}_L^{-1}]_{xx} \to \infty
+\end{equation}
+Under fused estimation $\mathbf{FIM}_{\text{fused}} = \mathbf{H}_{\text{IMU}} + \mathbf{H}_{\text{wheel}} + w_L \mathbf{H}_{\text{LiDAR}}$, non-zero IMU information ensures:
+\begin{equation}
+\operatorname{CRLB}(\hat{p}_x) \le \frac{1}{\sigma_{\min}^{\text{IMU}} + \sigma_{\min}^{\text{wheel}}} < \infty
+\end{equation}
+\end{proposition}
+
+\begin{proposition}[Inertial Short-Horizon Variance Growth]
+For 200~Hz IMU continuous pre-integration over keyframe interval $\Delta t \le 0.1\text{ s}$ with accelerometer noise density $\sigma_a$, propagated translational variance satisfies $\operatorname{Var}(\Delta \mathbf{p}) \approx \frac{1}{3} \sigma_a^2 \Delta t^3 \le (0.4\text{ mm})^2$. The condition number $\kappa(\mathbf{H}_{\text{fused}}) = \frac{\lambda_{\max}}{\lambda_{\min}} < \infty$, preventing optimization divergence.
+\end{proposition}
+
 \subsection{Cross-Domain Projection and Depth-PROSAC}
 
 \subsubsection{Extrinsic Calibration and Projection}
@@ -220,6 +236,14 @@ where the normalized distance metric is defined as:
 \begin{equation}
 d_{\text{ell}}(\mathbf{s}_k) = \sqrt{\left(\frac{x'}{a(x')}\right)^2 + \left(\frac{y'}{b}\right)^2}
 \end{equation}
+
+\begin{proposition}[Analytical Gradient of Asymmetric Repulsive Cost]
+For $d_{\text{ell}} < 1$, the repulsive obstacle potential admits a closed-form analytical gradient with respect to global position $\mathbf{p} = [x, y]^\top$:
+\begin{equation}
+\nabla_{\mathbf{p}} f_{\text{obs}}(\mathbf{s}_k) = -2 (1 - d_{\text{ell}}) \cdot \mathbf{R}(\psi_p)^\top \begin{bmatrix} \frac{x'}{a(x')^2 d_{\text{ell}}} \\ \frac{y'}{b^2 d_{\text{ell}}} \end{bmatrix}
+\end{equation}
+where $\mathbf{R}(\psi_p)$ rotates from global to pedestrian body frame. This analytical gradient enables TEB g2o edge optimization to converge in $<18.25\text{ ms}$ on ARM64 platforms.
+\end{proposition}
 
 \subsubsection{Closed-Loop A*-TEB Replanning Engine}
 Global planning computes an initial collision-free topological path on the static global costmap. When dynamic pedestrians invalidate the local band, the replanning FSM coordinates immediate local avoidance or triggers global path regeneration, as detailed in Algorithm~\ref{alg:replanning}.

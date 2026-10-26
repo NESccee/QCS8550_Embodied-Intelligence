@@ -94,6 +94,17 @@ $$\mathbf{X}^* = \arg\min_{\mathbf{X}} \left\{ \sum_{i} \|\mathbf{r}_{\text{prio
 > $$\mathbf{H}_{\text{fused}} = \mathbf{H}_{\text{IMU}} + \mathbf{H}_{\text{wheel}} + w_L \mathbf{H}_{\text{LiDAR}}$$  
 > *Since the 200 Hz IMU pre-integration provides non-degenerate metric acceleration constraints along $\mathbf{e}_x$, $\lambda_{\min}(\mathbf{H}_{\text{IMU}}) \ge \sigma_{\min}^{\text{IMU}} > 0$. Even when $\lambda_{\min}(\mathbf{H}_{\text{LiDAR}}) \to 0$, $\lambda_{\min}(\mathbf{H}_{\text{fused}}) \ge \sigma_{\min}^{\text{IMU}} + \sigma_{\min}^{\text{wheel}} > 0$. Therefore, $\mathbf{H}_{\text{fused}}$ is strictly positive definite, the Riccati error covariance remains uniformly upper-bounded, and the accumulated drift along unobservable corridor axes is bounded.*
 
+> **Proposition 1 (Cramér-Rao Lower Bound Divergence in Degenerate Subspace):**  
+> *Let the Fisher Information Matrix (FIM) for LiDAR-only state estimation be $\mathbf{FIM}_{\text{LiDAR}} = \mathbf{H}_{\text{LiDAR}} = \sum_k \mathbf{J}_k^{\top} \boldsymbol{\Sigma}_k^{-1} \mathbf{J}_k$. In corridor environments where $\mathbf{e}_x \in \mathcal{N}(\mathbf{H}_{\text{LiDAR}})$, the lower bound on longitudinal variance diverges:*  
+> $$\operatorname{CRLB}(\hat{p}_x) = \left[ \mathbf{FIM}_{\text{LiDAR}}^{-1} \right]_{xx} \to \infty$$  
+> *Under our fused factor graph, the effective Fisher Information is $\mathbf{FIM}_{\text{fused}} = \mathbf{H}_{\text{IMU}} + \mathbf{H}_{\text{wheel}} + w_L \mathbf{H}_{\text{LiDAR}}$. Since $\lambda_{\min}(\mathbf{H}_{\text{IMU}}) \ge \sigma_{\min}^{\text{IMU}} > 0$, the longitudinal estimation variance is strictly bounded by:*  
+> $$\operatorname{CRLB}(\hat{p}_x) \le \frac{1}{\sigma_{\min}^{\text{IMU}} + \sigma_{\min}^{\text{wheel}}} < \infty$$
+
+> **Proposition 2 (Inertial Short-Horizon Variance Growth and Condition Number Regularization):**  
+> *For 200 Hz IMU continuous pre-integration over keyframe interval $\Delta t = t_j - t_i \le 0.1\text{ s}$ with accelerometer white noise $\sigma_a$, the propagated translational variance obeys $\operatorname{Var}(\Delta \mathbf{p}_{ij}) \approx \frac{1}{3} \sigma_a^2 \Delta t^3 + \frac{1}{20} \sigma_{ba}^2 \Delta t^5 \le (0.4\text{ mm})^2$. Consequently, the condition number of the linear system in iSAM2 satisfies:*  
+> $$\kappa(\mathbf{H}_{\text{fused}}) = \frac{\lambda_{\max}(\mathbf{H}_{\text{fused}})}{\lambda_{\min}(\mathbf{H}_{\text{fused}})} \le \frac{\lambda_{\max}(\mathbf{H}_{\text{LiDAR}}) + \lambda_{\max}(\mathbf{H}_{\text{IMU}})}{\sigma_{\min}^{\text{IMU}}} < \infty$$  
+> *guaranteeing rapid conjugate gradient convergence without numerical ill-conditioning.*
+
 ---
 
 ### B. Cross-Domain Semantic Projection and Depth-PROSAC
@@ -144,6 +155,11 @@ Traditional static inflation inflates an obstacle by a constant radius $r_0$. Fo
 $$\begin{bmatrix} x' \\ y' \end{bmatrix} = \begin{bmatrix} \cos\psi & \sin\psi \\ -\sin\psi & \cos\psi \end{bmatrix} \begin{bmatrix} x - x_p \\ y - y_p \end{bmatrix}$$
 The protective envelope is formulated as an asymmetric ellipse:
 $$\frac{x'^2}{a^2} + \frac{y'^2}{b^2} \le 1, \quad \text{where} \quad a = \begin{cases} r_0 + \beta \|\mathbf{v}_p\|, & x' > 0 \quad (\text{Front}) \\ r_0, & x' \le 0 \quad (\text{Rear}) \end{cases}, \quad b = r_0$$
+
+> **Proposition 3 (Analytical Closed-Form Gradient of Asymmetric Repulsive Cost):**  
+> *Let the normalized distance metric be $d_{\text{ell}}(\mathbf{s}_k) = \sqrt{\left(\frac{x'}{a(x')}\right)^2 + \left(\frac{y'}{b}\right)^2}$. The repulsive obstacle cost $f_{\text{obs}}(\mathbf{s}_k) = (1 - d_{\text{ell}}(\mathbf{s}_k))^2$ for $d_{\text{ell}} < 1$ admits a continuous, closed-form gradient with respect to global robot position $\mathbf{p} = [x, y]^\top$:*  
+> $$\nabla_{\mathbf{p}} f_{\text{obs}}(\mathbf{s}_k) = -2 (1 - d_{\text{ell}}) \cdot \mathbf{R}(\psi_p)^\top \begin{bmatrix} \frac{x'}{a(x')^2 d_{\text{ell}}} \\ \frac{y'}{b^2 d_{\text{ell}}} \end{bmatrix}$$  
+> *where $\mathbf{R}(\psi_p) = \begin{bmatrix} \cos\psi_p & \sin\psi_p \\ -\sin\psi_p & \cos\psi_p \end{bmatrix}$. This analytical Jacobian eliminates numerical finite-difference approximations, enabling the Timed-Elastic-Band (TEB) g2o hyper-graph optimization solver to converge within $18.25\text{ ms}$ on embedded compute units.*
 
 ![Figure 3: Dynamic Semantic Costmap Comparison](figures/asymmetric_costmap_concept.svg)
 *Figure 3. Conceptual comparison between traditional symmetric obstacle inflation and the proposed asymmetric velocity ellipse: our formulation eliminates conservative rear blockages, accelerating transit by 36.3%.*
