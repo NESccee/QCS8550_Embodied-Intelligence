@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  smartcar_benchmark:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: smartcar-slam:humble
+    container_name: smartcar_slam_benchmark
+    network_mode: host
+    ipc: host
+    environment:
+      - DISPLAY=${DISPLAY}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ..:/ros2_ws/src/SmartCar_Gazebo_ws:rw
+    command: bash /ros2_ws/src/SmartCar_Gazebo_ws/scripts/reproduce_benchmarks.sh

@@ -1,0 +1,29 @@
+# Build & install directories
+build/
+install/
+log/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# LaTeX auxiliary files (keep paper.pdf)
+paper/*.aux
+paper/*.log
+paper/*.bbl
+paper/*.blg
+paper/*.out
+paper/*.toc
+paper/*.synctex.gz
+
+# Video temp files
+*.mp4.tmp*
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

@@ -1,0 +1,823 @@
+<?xml version="1.0" ?>
+<!--
+  高保真真实室内自主机器人综合实验场地 (Realistic AMR Testing Facility - SDF 1.8)
+  根据真实室内机器人实验室与 AMR 测试环境标准规范建模：
+    1. 真实建筑与地面：高光泽工业环氧地坪、地面安全警戒带、门禁铝合金门套结构、全墙体踢脚线
+    2. 专业实验设施与家具：
+       - 地面主控工作站 (双联大屏显示器、主机、键盘、办公椅)
+       - 19寸标准服务器与网络遥测机柜 (含服务器机身与状态指示灯)
+       - 重型工业仓储货架 (含分色零件收纳盒、仪器箱、纸箱)
+       - 智能自主快充对准桩 (充电基座、导引槽、AprilTag 视觉对准靶标)
+       - 实验室消防灭火器、绿色发光安全出口指示牌、现代室内绿植盆栽
+    3. 多传感器 SLAM 验证要素：
+       - 走廊直道 (退化检测与 IMU 预积分)
+       - 多分区房间与双向门洞 (因子图回环检测与全局/局部路径规划)
+       - 丰富语义目标 (仿真人体、反光条警示桶、重型木质包装箱)
+    4. 采用世界视角 (World Perspective) 全景摄像机配置，全局纵览小车运行姿态
+-->
+<sdf version="1.8">
+  <world name="smart_car_world">
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <plugin filename="ignition-gazebo-physics-system" name="ignition::gazebo::systems::Physics"/>
+    <plugin filename="ignition-gazebo-user-commands-system" name="ignition::gazebo::systems::UserCommands"/>
+    <plugin filename="ignition-gazebo-scene-broadcaster-system" name="ignition::gazebo::systems::SceneBroadcaster"/>
+    <plugin filename="ignition-gazebo-imu-system" name="ignition::gazebo::systems::Imu"/>
+
+    <!-- GUI 世界视角全景摄像机 (俯瞰整个实验场地：走廊、双门洞与室内测试区) -->
+    <gui fullscreen="0">
+      <camera name="user_camera">
+        <pose>2.0 -4.6 5.2 0.0 0.82 1.5708</pose>
+        <view_controller>orbit</view_controller>
+        <projection_type>perspective</projection_type>
+      </camera>
+    </gui>
+
+    <!-- 主太阳光 (模拟天窗/斜射光，提供清晰接触阴影与立体感) -->
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 12 0 0 0</pose>
+      <diffuse>0.82 0.84 0.86 1</diffuse>
+      <specular>0.3 0.3 0.3 1</specular>
+      <direction>-0.35 0.25 -0.85</direction>
+    </light>
+
+    <!-- 实验室顶部吊顶多点漫射补光 (消除深暗死角) -->
+    <light type="directional" name="ceiling_fill_light">
+      <cast_shadows>false</cast_shadows>
+      <pose>0 0 8 0 0 0</pose>
+      <diffuse>0.40 0.42 0.46 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <direction>0.35 -0.25 -0.85</direction>
+    </light>
+
+    <!-- ==================== 1. 真实实验室地面与地标标线 ==================== -->
+    <model name="laboratory_floor">
+      <static>true</static>
+      <link name="link">
+        <!-- 主环氧地坪 -->
+        <collision name="floor_collision">
+          <geometry><plane><normal>0 0 1</normal><size>28 22</size></plane></geometry>
+          <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface>
+        </collision>
+        <visual name="floor_visual">
+          <geometry><plane><normal>0 0 1</normal><size>28 22</size></plane></geometry>
+          <material>
+            <ambient>0.32 0.35 0.38 1</ambient>
+            <diffuse>0.44 0.47 0.51 1</diffuse>
+          </material>
+        </visual>
+
+        <!-- 走廊南侧安全警示黄线 (宽 8cm) -->
+        <visual name="safety_line_south">
+          <pose>2.0 -1.45 0.001 0 0 0</pose>
+          <geometry><box><size>8.8 0.08 0.001</size></box></geometry>
+          <material>
+            <ambient>0.80 0.65 0.05 1</ambient>
+            <diffuse>0.96 0.78 0.10 1</diffuse>
+          </material>
+        </visual>
+        <!-- 房间北侧安全警示黄线 -->
+        <visual name="safety_line_north">
+          <pose>2.0 3.05 0.001 0 0 0</pose>
+          <geometry><box><size>8.8 0.08 0.001</size></box></geometry>
+          <material>
+            <ambient>0.80 0.65 0.05 1</ambient>
+            <diffuse>0.96 0.78 0.10 1</diffuse>
+          </material>
+        </visual>
+        <!-- 巡航回路引导白虚线 (走廊段) -->
+        <visual name="lane_guide_corridor">
+          <pose>1.3 0.0 0.001 0 0 0</pose>
+          <geometry><box><size>2.6 0.05 0.001</size></box></geometry>
+          <material>
+            <ambient>0.85 0.85 0.85 1</ambient>
+            <diffuse>0.95 0.95 0.95 1</diffuse>
+          </material>
+        </visual>
+        <!-- 巡航回路引导白虚线 (北区返程段) -->
+        <visual name="lane_guide_room">
+          <pose>1.3 1.6 0.001 0 0 0</pose>
+          <geometry><box><size>2.6 0.05 0.001</size></box></geometry>
+          <material>
+            <ambient>0.85 0.85 0.85 1</ambient>
+            <diffuse>0.95 0.95 0.95 1</diffuse>
+          </material>
+        </visual>
+        <!-- 小车自主充电待机停机位 (黄色边框停车位) -->
+        <visual name="docking_pad_border">
+          <pose>-0.05 0.0 0.001 0 0 0</pose>
+          <geometry><box><size>0.45 0.35 0.001</size></box></geometry>
+          <material>
+            <ambient>0.25 0.28 0.30 1</ambient>
+            <diffuse>0.35 0.38 0.42 1</diffuse>
+          </material>
+        </visual>
+        <visual name="docking_pad_line_f">
+          <pose>0.17 0.0 0.002 0 0 0</pose>
+          <geometry><box><size>0.02 0.35 0.001</size></box></geometry>
+          <material>
+            <ambient>0.80 0.65 0.05 1</ambient>
+            <diffuse>0.96 0.78 0.10 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== 2. 真实建筑外墙体 (含黑色踢脚线) ==================== -->
+    <model name="outer_walls_with_skirting">
+      <static>true</static>
+      <link name="link">
+        <!-- 南侧主外墙 (含踢脚线与浅灰墙体) -->
+        <collision name="c_south">
+          <pose>2.0 -1.6 0.425 0 0 0</pose>
+          <geometry><box><size>9.0 0.16 0.85</size></box></geometry>
+        </collision>
+        <visual name="v_south_skirt">
+          <pose>2.0 -1.59 0.04 0 0 0</pose>
+          <geometry><box><size>9.0 0.18 0.08</size></box></geometry>
+          <material>
+            <ambient>0.12 0.14 0.16 1</ambient>
+            <diffuse>0.18 0.20 0.22 1</diffuse>
+          </material>
+        </visual>
+        <visual name="v_south_wall">
+          <pose>2.0 -1.6 0.465 0 0 0</pose>
+          <geometry><box><size>9.0 0.16 0.77</size></box></geometry>
+          <material>
+            <ambient>0.62 0.65 0.68 1</ambient>
+            <diffuse>0.78 0.80 0.84 1</diffuse>
+          </material>
+        </visual>
+
+        <!-- 北侧主外墙 -->
+        <collision name="c_north">
+          <pose>2.0 3.2 0.425 0 0 0</pose>
+          <geometry><box><size>9.0 0.16 0.85</size></box></geometry>
+        </collision>
+        <visual name="v_north_skirt">
+          <pose>2.0 3.19 0.04 0 0 0</pose>
+          <geometry><box><size>9.0 0.18 0.08</size></box></geometry>
+          <material>
+            <ambient>0.12 0.14 0.16 1</ambient>
+            <diffuse>0.18 0.20 0.22 1</diffuse>
+          </material>
+        </visual>
+        <visual name="v_north_wall">
+          <pose>2.0 3.2 0.465 0 0 0</pose>
+          <geometry><box><size>9.0 0.16 0.77</size></box></geometry>
+          <material>
+            <ambient>0.62 0.65 0.68 1</ambient>
+            <diffuse>0.78 0.80 0.84 1</diffuse>
+          </material>
+        </visual>
+
+        <!-- 西侧外墙 -->
+        <collision name="c_west">
+          <pose>-2.5 0.8 0.425 0 0 0</pose>
+          <geometry><box><size>0.16 4.96 0.85</size></box></geometry>
+        </collision>
+        <visual name="v_west_skirt">
+          <pose>-2.49 0.8 0.04 0 0 0</pose>
+          <geometry><box><size>0.18 4.96 0.08</size></box></geometry>
+          <material>
+            <ambient>0.12 0.14 0.16 1</ambient>
+            <diffuse>0.18 0.20 0.22 1</diffuse>
+          </material>
+        </visual>
+        <visual name="v_west_wall">
+          <pose>-2.5 0.8 0.465 0 0 0</pose>
+          <geometry><box><size>0.16 4.96 0.77</size></box></geometry>
+          <material>
+            <ambient>0.62 0.65 0.68 1</ambient>
+            <diffuse>0.78 0.80 0.84 1</diffuse>
+          </material>
+        </visual>
+
+        <!-- 东侧外墙 -->
+        <collision name="c_east">
+          <pose>6.5 0.8 0.425 0 0 0</pose>
+          <geometry><box><size>0.16 4.96 0.85</size></box></geometry>
+        </collision>
+        <visual name="v_east_skirt">
+          <pose>6.49 0.8 0.04 0 0 0</pose>
+          <geometry><box><size>0.18 4.96 0.08</size></box></geometry>
+          <material>
+            <ambient>0.12 0.14 0.16 1</ambient>
+            <diffuse>0.18 0.20 0.22 1</diffuse>
+          </material>
+        </visual>
+        <visual name="v_east_wall">
+          <pose>6.5 0.8 0.465 0 0 0</pose>
+          <geometry><box><size>0.16 4.96 0.77</size></box></geometry>
+          <material>
+            <ambient>0.62 0.65 0.68 1</ambient>
+            <diffuse>0.78 0.80 0.84 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== 3. 室内功能区分割墙体与金属铝合金门套 (门洞 1.2m) ==================== -->
+    <model name="interior_partitions_and_portals">
+      <static>true</static>
+      <link name="link">
+        <!-- 西侧隔墙段 (x: -2.5 ~ -0.6) -->
+        <collision name="c_part_w">
+          <pose>-1.55 0.85 0.425 0 0 0</pose>
+          <geometry><box><size>1.9 0.16 0.85</size></box></geometry>
+        </collision>
+        <visual name="v_part_w_skirt">
+          <pose>-1.55 0.85 0.04 0 0 0</pose>
+          <geometry><box><size>1.9 0.18 0.08</size></box></geometry>
+          <material>
+            <ambient>0.12 0.14 0.16 1</ambient>
+            <diffuse>0.18 0.20 0.22 1</diffuse>
+          </material>
+        </visual>
+        <visual name="v_part_w">
+          <pose>-1.55 0.85 0.465 0 0 0</pose>
+          <geometry><box><size>1.9 0.16 0.77</size></box></geometry>
+          <material>
+            <ambient>0.58 0.60 0.64 1</ambient>
+            <diffuse>0.74 0.76 0.80 1</diffuse>
+          </material>
+        </visual>
+
+        <!-- 西门洞金属门框立柱与门楣 (西门洞: x: -0.6 ~ 0.6，净宽 1.2m) -->
+        <visual name="door1_jamb_left">
+          <pose>-0.60 0.85 0.425 0 0 0</pose>
+          <geometry><box><size>0.06 0.20 0.85</size></box></geometry>
+          <material>
+            <ambient>0.15 0.16 0.18 1</ambient>
+            <diffuse>0.24 0.26 0.30 1</diffuse>
+          </material>
+        </visual>
+        <visual name="door1_jamb_right">
+          <pose>0.60 0.85 0.425 0 0 0</pose>
+          <geometry><box><size>0.06 0.20 0.85</size></box></geometry>
+          <material>
+            <ambient>0.15 0.16 0.18 1</ambient>
+            <diffuse>0.24 0.26 0.30 1</diffuse>
+          </material>
+        </visual>
+        <visual name="door1_header">
+          <pose>0.0 0.85 0.83 0 0 0</pose>
+          <geometry><box><size>1.26 0.18 0.04</size></box></geometry>
+          <material>
+            <ambient>0.15 0.16 0.18 1</ambient>
+            <diffuse>0.24 0.26 0.30 1</diffuse>
+          </material>
+        </visual>
+
+        <!-- 中部隔墙段 (x: 0.6 ~ 2.1) -->
+        <collision name="c_part_m">
+          <pose>1.35 0.85 0.425 0 0 0</pose>
+          <geometry><box><size>1.5 0.16 0.85</size></box></geometry>
+        </collision>
+        <visual name="v_part_m_skirt">
+          <pose>1.35 0.85 0.04 0 0 0</pose>
+          <geometry><box><size>1.5 0.18 0.08</size></box></geometry>
+          <material>
+            <ambient>0.12 0.14 0.16 1</ambient>
+            <diffuse>0.18 0.20 0.22 1</diffuse>
+          </material>
+        </visual>
+        <visual name="v_part_m">
+          <pose>1.35 0.85 0.465 0 0 0</pose>
+          <geometry><box><size>1.5 0.16 0.77</size></box></geometry>
+          <material>
+            <ambient>0.58 0.60 0.64 1</ambient>
+            <diffuse>0.74 0.76 0.80 1</diffuse>
+          </material>
+        </visual>
+
+        <!-- 东门洞金属门框立柱与门楣 (东门洞: x: 2.1 ~ 3.3，净宽 1.2m) -->
+        <visual name="door2_jamb_left">
+          <pose>2.10 0.85 0.425 0 0 0</pose>
+          <geometry><box><size>0.06 0.20 0.85</size></box></geometry>
+          <material>
+            <ambient>0.15 0.16 0.18 1</ambient>
+            <diffuse>0.24 0.26 0.30 1</diffuse>
+          </material>
+        </visual>
+        <visual name="door2_jamb_right">
+          <pose>3.30 0.85 0.425 0 0 0</pose>
+          <geometry><box><size>0.06 0.20 0.85</size></box></geometry>
+          <material>
+            <ambient>0.15 0.16 0.18 1</ambient>
+            <diffuse>0.24 0.26 0.30 1</diffuse>
+          </material>
+        </visual>
+        <visual name="door2_header">
+          <pose>2.70 0.85 0.83 0 0 0</pose>
+          <geometry><box><size>1.26 0.18 0.04</size></box></geometry>
+          <material>
+            <ambient>0.15 0.16 0.18 1</ambient>
+            <diffuse>0.24 0.26 0.30 1</diffuse>
+          </material>
+        </visual>
+
+        <!-- 东侧隔墙段 (x: 3.3 ~ 6.5) -->
+        <collision name="c_part_e">
+          <pose>4.9 0.85 0.425 0 0 0</pose>
+          <geometry><box><size>3.2 0.16 0.85</size></box></geometry>
+        </collision>
+        <visual name="v_part_e_skirt">
+          <pose>4.9 0.85 0.04 0 0 0</pose>
+          <geometry><box><size>3.2 0.18 0.08</size></box></geometry>
+          <material>
+            <ambient>0.12 0.14 0.16 1</ambient>
+            <diffuse>0.18 0.20 0.22 1</diffuse>
+          </material>
+        </visual>
+        <visual name="v_part_e">
+          <pose>4.9 0.85 0.465 0 0 0</pose>
+          <geometry><box><size>3.2 0.16 0.77</size></box></geometry>
+          <material>
+            <ambient>0.58 0.60 0.64 1</ambient>
+            <diffuse>0.74 0.76 0.80 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== 4. 专业实验设施：地面主控工作站 ==================== -->
+    <model name="ground_control_station">
+      <static>true</static>
+      <pose>-1.6 2.45 0 0 0 0</pose>
+      <link name="link">
+        <!-- 桌子碰撞 -->
+        <collision name="table_c">
+          <pose>0 0 0.36 0 0 0</pose>
+          <geometry><box><size>1.2 0.65 0.72</size></box></geometry>
+        </collision>
+        <!-- 钢木实验桌桌面 -->
+        <visual name="table_top">
+          <pose>0 0 0.71 0 0 0</pose>
+          <geometry><box><size>1.2 0.65 0.03</size></box></geometry>
+          <material>
+            <ambient>0.70 0.72 0.75 1</ambient>
+            <diffuse>0.88 0.90 0.92 1</diffuse>
+          </material>
+        </visual>
+        <!-- 黑色钢质桌腿 -->
+        <visual name="table_legs">
+          <pose>0 0 0.35 0 0 0</pose>
+          <geometry><box><size>1.14 0.59 0.70</size></box></geometry>
+          <material>
+            <ambient>0.12 0.12 0.14 1</ambient>
+            <diffuse>0.18 0.18 0.22 1</diffuse>
+          </material>
+        </visual>
+        <!-- 双联液晶显示器 (左主屏) -->
+        <visual name="monitor_left">
+          <pose>-0.22 -0.10 0.92 0 0 0.15</pose>
+          <geometry><box><size>0.42 0.02 0.26</size></box></geometry>
+          <material>
+            <ambient>0.08 0.15 0.28 1</ambient>
+            <diffuse>0.15 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <!-- 双联液晶显示器 (右副屏) -->
+        <visual name="monitor_right">
+          <pose>0.22 -0.10 0.92 0 0 -0.15</pose>
+          <geometry><box><size>0.42 0.02 0.26</size></box></geometry>
+          <material>
+            <ambient>0.08 0.15 0.28 1</ambient>
+            <diffuse>0.15 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <!-- 工控塔式主机 -->
+        <visual name="pc_tower">
+          <pose>0.48 0.05 0.22 0 0 0</pose>
+          <geometry><box><size>0.18 0.40 0.42</size></box></geometry>
+          <material>
+            <ambient>0.10 0.10 0.10 1</ambient>
+            <diffuse>0.15 0.15 0.18 1</diffuse>
+          </material>
+        </visual>
+        <!-- 主机电源指示灯 (蓝色常亮) -->
+        <visual name="pc_led">
+          <pose>0.48 -0.16 0.38 0 0 0</pose>
+          <geometry><box><size>0.01 0.01 0.01</size></box></geometry>
+          <material>
+            <ambient>0.1 0.4 0.9 1</ambient>
+            <diffuse>0.2 0.6 1.0 1</diffuse>
+          </material>
+        </visual>
+        <!-- 办公人体工学网布转椅 -->
+        <visual name="chair_seat">
+          <pose>0 -0.45 0.45 0 0 0</pose>
+          <geometry><cylinder><radius>0.22</radius><length>0.08</length></cylinder></geometry>
+          <material>
+            <ambient>0.12 0.12 0.14 1</ambient>
+            <diffuse>0.18 0.18 0.20 1</diffuse>
+          </material>
+        </visual>
+        <visual name="chair_back">
+          <pose>0 -0.62 0.72 0.1 0 0</pose>
+          <geometry><box><size>0.38 0.05 0.44</size></box></geometry>
+          <material>
+            <ambient>0.10 0.10 0.12 1</ambient>
+            <diffuse>0.15 0.15 0.18 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== 5. 专业实验设施：19寸标准网络与算力服务器机柜 ==================== -->
+    <model name="server_telemetry_rack">
+      <static>true</static>
+      <pose>5.8 2.35 0 0 0 0</pose>
+      <link name="link">
+        <collision name="rack_c">
+          <pose>0 0 0.65 0 0 0</pose>
+          <geometry><box><size>0.60 0.65 1.30</size></box></geometry>
+        </collision>
+        <!-- 机柜主体 (黑色钣金) -->
+        <visual name="rack_body">
+          <pose>0 0 0.65 0 0 0</pose>
+          <geometry><box><size>0.60 0.65 1.30</size></box></geometry>
+          <material>
+            <ambient>0.10 0.10 0.12 1</ambient>
+            <diffuse>0.16 0.16 0.18 1</diffuse>
+          </material>
+        </visual>
+        <!-- 前侧深色防尘玻璃观察窗 -->
+        <visual name="rack_glass">
+          <pose>-0.301 0 0.65 0 0 0</pose>
+          <geometry><box><size>0.005 0.55 1.15</size></box></geometry>
+          <material>
+            <ambient>0.05 0.08 0.12 1</ambient>
+            <diffuse>0.08 0.15 0.22 1</diffuse>
+          </material>
+        </visual>
+        <!-- 内部服务器状态绿灯群 (阵列指示) -->
+        <visual name="rack_led_1">
+          <pose>-0.29 0.15 0.85 0 0 0</pose>
+          <geometry><box><size>0.01 0.01 0.01</size></box></geometry>
+          <material>
+            <ambient>0.05 0.80 0.15 1</ambient>
+            <diffuse>0.10 0.98 0.25 1</diffuse>
+          </material>
+        </visual>
+        <visual name="rack_led_2">
+          <pose>-0.29 0.15 0.75 0 0 0</pose>
+          <geometry><box><size>0.01 0.01 0.01</size></box></geometry>
+          <material>
+            <ambient>0.05 0.80 0.15 1</ambient>
+            <diffuse>0.10 0.98 0.25 1</diffuse>
+          </material>
+        </visual>
+        <visual name="rack_led_3">
+          <pose>-0.29 0.15 0.65 0 0 0</pose>
+          <geometry><box><size>0.01 0.01 0.01</size></box></geometry>
+          <material>
+            <ambient>0.80 0.70 0.05 1</ambient>
+            <diffuse>0.95 0.85 0.10 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== 6. 专业实验设施：重型仓储货架与零件箱 ==================== -->
+    <model name="industrial_storage_shelving">
+      <static>true</static>
+      <pose>0.0 2.75 0 0 0 0</pose>
+      <link name="link">
+        <collision name="shelf_c">
+          <pose>0 0 0.65 0 0 0</pose>
+          <geometry><box><size>1.30 0.45 1.30</size></box></geometry>
+        </collision>
+        <!-- 货架立柱与层板 (冷轧钢蓝) -->
+        <visual name="shelf_frame">
+          <pose>0 0 0.65 0 0 0</pose>
+          <geometry><box><size>1.30 0.45 1.30</size></box></geometry>
+          <material>
+            <ambient>0.15 0.25 0.45 1</ambient>
+            <diffuse>0.22 0.38 0.68 1</diffuse>
+          </material>
+        </visual>
+        <!-- 第一层蓝色收纳箱 -->
+        <visual name="bin_blue">
+          <pose>-0.35 0 0.45 0 0 0</pose>
+          <geometry><box><size>0.32 0.38 0.22</size></box></geometry>
+          <material>
+            <ambient>0.10 0.30 0.75 1</ambient>
+            <diffuse>0.15 0.45 0.95 1</diffuse>
+          </material>
+        </visual>
+        <!-- 第二层黄色警戒箱 -->
+        <visual name="bin_yellow">
+          <pose>0.35 0 0.45 0 0 0</pose>
+          <geometry><box><size>0.32 0.38 0.22</size></box></geometry>
+          <material>
+            <ambient>0.80 0.65 0.05 1</ambient>
+            <diffuse>0.96 0.78 0.10 1</diffuse>
+          </material>
+        </visual>
+        <!-- 顶层铝制便携仪器箱 -->
+        <visual name="instrument_case">
+          <pose>0.0 0 0.88 0 0 0</pose>
+          <geometry><box><size>0.48 0.35 0.18</size></box></geometry>
+          <material>
+            <ambient>0.65 0.68 0.72 1</ambient>
+            <diffuse>0.85 0.88 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== 7. 自主充电基座与视觉对准靶标 (Docking Station) ==================== -->
+    <model name="charging_dock_station">
+      <static>true</static>
+      <pose>-0.60 0.0 0 0 0 0</pose>
+      <link name="link">
+        <collision name="dock_c">
+          <pose>0 0 0.25 0 0 0</pose>
+          <geometry><box><size>0.25 0.35 0.50</size></box></geometry>
+        </collision>
+        <!-- 充电桩立柱 -->
+        <visual name="dock_post">
+          <pose>0 0 0.25 0 0 0</pose>
+          <geometry><box><size>0.18 0.32 0.50</size></box></geometry>
+          <material>
+            <ambient>0.18 0.20 0.22 1</ambient>
+            <diffuse>0.28 0.30 0.34 1</diffuse>
+          </material>
+        </visual>
+        <!-- AprilTag / ArUco 视觉对准黑白靶标面 -->
+        <visual name="dock_target">
+          <pose>0.091 0 0.32 0 0 0</pose>
+          <geometry><box><size>0.002 0.22 0.22</size></box></geometry>
+          <material>
+            <ambient>0.95 0.95 0.95 1</ambient>
+            <diffuse>1.0 1.0 1.0 1</diffuse>
+          </material>
+        </visual>
+        <visual name="dock_target_inner">
+          <pose>0.092 0 0.32 0 0 0</pose>
+          <geometry><box><size>0.002 0.14 0.14</size></box></geometry>
+          <material>
+            <ambient>0.05 0.05 0.05 1</ambient>
+            <diffuse>0.08 0.08 0.08 1</diffuse>
+          </material>
+        </visual>
+        <!-- 充电就绪绿色指示灯 -->
+        <visual name="dock_led">
+          <pose>0.091 0 0.45 0 0 0</pose>
+          <geometry><box><size>0.002 0.04 0.02</size></box></geometry>
+          <material>
+            <ambient>0.05 0.85 0.15 1</ambient>
+            <diffuse>0.10 0.98 0.25 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== 8. 室内安全与环境细节 (灭火器、安全出口灯、绿植) ==================== -->
+    <!-- 墙挂式红色干粉灭火器 -->
+    <model name="fire_extinguisher">
+      <static>true</static>
+      <pose>6.40 -0.60 0.40 0 0 0</pose>
+      <link name="link">
+        <visual name="extinguisher_body">
+          <geometry><cylinder><radius>0.07</radius><length>0.42</length></cylinder></geometry>
+          <material>
+            <ambient>0.75 0.05 0.05 1</ambient>
+            <diffuse>0.95 0.08 0.08 1</diffuse>
+          </material>
+        </visual>
+        <visual name="extinguisher_handle">
+          <pose>0 0 0.24 0 0 0</pose>
+          <geometry><box><size>0.04 0.10 0.06</size></box></geometry>
+          <material>
+            <ambient>0.10 0.10 0.10 1</ambient>
+            <diffuse>0.18 0.18 0.18 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 门洞上方发光安全出口 (EXIT) 指示牌 -->
+    <model name="exit_sign">
+      <static>true</static>
+      <pose>2.70 0.85 0.88 0 0 0</pose>
+      <link name="link">
+        <visual name="exit_box">
+          <geometry><box><size>0.32 0.04 0.10</size></box></geometry>
+          <material>
+            <ambient>0.05 0.70 0.20 1</ambient>
+            <diffuse>0.10 0.92 0.28 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 现代陶瓷白色方形花盆与室内大叶绿植 -->
+    <model name="indoor_potted_plant">
+      <static>true</static>
+      <pose>-2.0 -1.15 0 0 0 0</pose>
+      <link name="link">
+        <!-- 白色极简花盆 -->
+        <visual name="pot">
+          <pose>0 0 0.20 0 0 0</pose>
+          <geometry><box><size>0.32 0.32 0.40</size></box></geometry>
+          <material>
+            <ambient>0.80 0.82 0.85 1</ambient>
+            <diffuse>0.92 0.94 0.96 1</diffuse>
+          </material>
+        </visual>
+        <!-- 仿真深绿灌木叶丛 -->
+        <visual name="plant_foliage">
+          <pose>0 0 0.52 0 0 0</pose>
+          <geometry><sphere><radius>0.24</radius></sphere></geometry>
+          <material>
+            <ambient>0.08 0.35 0.12 1</ambient>
+            <diffuse>0.14 0.52 0.20 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== 9. 真实动态行人与语义障碍物 ==================== -->
+    <!-- 动态行人 1 (走廊侧，青蓝工装外套与深色牛仔裤，高度 1.65m) -->
+    <model name="pedestrian_person_1">
+      <static>true</static>
+      <pose>1.35 -0.75 0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <pose>0 0 0.8 0 0 0</pose>
+          <geometry><cylinder><radius>0.20</radius><length>1.6</length></cylinder></geometry>
+        </collision>
+        <visual name="leg_left">
+          <pose>0 -0.09 0.38 0 0 0</pose>
+          <geometry><cylinder><radius>0.065</radius><length>0.76</length></cylinder></geometry>
+          <material>
+            <ambient>0.12 0.16 0.24 1</ambient>
+            <diffuse>0.18 0.24 0.36 1</diffuse>
+          </material>
+        </visual>
+        <visual name="leg_right">
+          <pose>0 0.09 0.38 0 0 0</pose>
+          <geometry><cylinder><radius>0.065</radius><length>0.76</length></cylinder></geometry>
+          <material>
+            <ambient>0.12 0.16 0.24 1</ambient>
+            <diffuse>0.18 0.24 0.36 1</diffuse>
+          </material>
+        </visual>
+        <visual name="torso_jacket">
+          <pose>0 0 1.05 0 0 0</pose>
+          <geometry><box><size>0.26 0.42 0.58</size></box></geometry>
+          <material>
+            <ambient>0.08 0.52 0.75 1</ambient>
+            <diffuse>0.12 0.68 0.90 1</diffuse>
+          </material>
+        </visual>
+        <visual name="head_and_cap">
+          <pose>0 0 1.48 0 0 0</pose>
+          <geometry><sphere><radius>0.125</radius></sphere></geometry>
+          <material>
+            <ambient>0.85 0.55 0.20 1</ambient>
+            <diffuse>0.95 0.65 0.25 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 动态行人 2 (北区导航测试区，高可见度反光工服与安全帽) -->
+    <model name="pedestrian_person_2">
+      <static>true</static>
+      <pose>1.35 2.50 0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <pose>0 0 0.8 0 0 0</pose>
+          <geometry><cylinder><radius>0.20</radius><length>1.6</length></cylinder></geometry>
+        </collision>
+        <visual name="trousers">
+          <pose>0 0 0.38 0 0 0</pose>
+          <geometry><cylinder><radius>0.12</radius><length>0.76</length></cylinder></geometry>
+          <material>
+            <ambient>0.15 0.18 0.22 1</ambient>
+            <diffuse>0.20 0.24 0.30 1</diffuse>
+          </material>
+        </visual>
+        <visual name="safety_jacket">
+          <pose>0 0 1.05 0 0 0</pose>
+          <geometry><box><size>0.26 0.42 0.58</size></box></geometry>
+          <material>
+            <ambient>0.82 0.38 0.08 1</ambient>
+            <diffuse>0.96 0.48 0.10 1</diffuse>
+          </material>
+        </visual>
+        <visual name="hard_hat">
+          <pose>0 0 1.48 0 0 0</pose>
+          <geometry><sphere><radius>0.125</radius></sphere></geometry>
+          <material>
+            <ambient>0.85 0.85 0.85 1</ambient>
+            <diffuse>0.98 0.98 0.98 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 重型木质包装储物箱 (走廊尽头) -->
+    <model name="heavy_wood_crate">
+      <static>true</static>
+      <pose>4.2 0.0 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.55 0.55 0.50</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.55 0.55 0.50</size></box></geometry>
+          <material>
+            <ambient>0.58 0.42 0.25 1</ambient>
+            <diffuse>0.74 0.54 0.34 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 黄色安全反光警示圆台桶 (北区东侧) -->
+    <model name="warning_safety_barrel_1">
+      <static>true</static>
+      <pose>4.2 1.7 0.40 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.24</radius><length>0.80</length></cylinder></geometry>
+        </collision>
+        <visual name="barrel_body">
+          <geometry><cylinder><radius>0.24</radius><length>0.80</length></cylinder></geometry>
+          <material>
+            <ambient>0.80 0.68 0.08 1</ambient>
+            <diffuse>0.96 0.82 0.10 1</diffuse>
+          </material>
+        </visual>
+        <!-- 白色高亮反光带条纹 -->
+        <visual name="reflective_stripe">
+          <pose>0 0 0.08 0 0 0</pose>
+          <geometry><cylinder><radius>0.245</radius><length>0.12</length></cylinder></geometry>
+          <material>
+            <ambient>0.85 0.85 0.85 1</ambient>
+            <diffuse>0.98 0.98 0.98 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 橙色危险反光警示圆台桶 (北区西侧) -->
+    <model name="warning_safety_barrel_2">
+      <static>true</static>
+      <pose>-1.4 1.7 0.40 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.24</radius><length>0.80</length></cylinder></geometry>
+        </collision>
+        <visual name="barrel_body">
+          <geometry><cylinder><radius>0.24</radius><length>0.80</length></cylinder></geometry>
+          <material>
+            <ambient>0.80 0.28 0.05 1</ambient>
+            <diffuse>0.96 0.36 0.08 1</diffuse>
+          </material>
+        </visual>
+        <visual name="reflective_stripe">
+          <pose>0 0 0.08 0 0 0</pose>
+          <geometry><cylinder><radius>0.245</radius><length>0.12</length></cylinder></geometry>
+          <material>
+            <ambient>0.85 0.85 0.85 1</ambient>
+            <diffuse>0.98 0.98 0.98 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 实验仪器整备台 (南侧走廊墙侧) -->
+    <model name="instrument_maintenance_bench">
+      <static>true</static>
+      <pose>2.0 -1.25 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>1.2 0.40 0.50</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>1.2 0.40 0.50</size></box></geometry>
+          <material>
+            <ambient>0.35 0.38 0.42 1</ambient>
+            <diffuse>0.48 0.52 0.58 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== 10. 高保真智能小车模型 ==================== -->
+    <include>
+      <uri>model://smart_car</uri>
+      <pose>0 0 0.01 0 0 0</pose>
+    </include>
+  </world>
+</sdf>
