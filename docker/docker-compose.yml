@@ -15,3 +15,4 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ..:/ros2_ws/src/SmartCar_Gazebo_ws:rw
     command: bash /ros2_ws/src/SmartCar_Gazebo_ws/scripts/reproduce_benchmarks.sh
+

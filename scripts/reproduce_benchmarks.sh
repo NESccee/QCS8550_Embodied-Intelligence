@@ -35,12 +35,13 @@ echo ">>> [3/5] Running GoogleTest test suite..."
 colcon test
 colcon test-result --verbose
 
-# 4. Generate Trajectories, Quantitative Benchmarks & Figures
+# 4. Generate Trajectories, Quantitative Benchmarks, Figures & Presentation
 echo ">>> [4/5] Executing quantitative statistical benchmarks..."
 python3 evaluate_trajectories.py
 python3 benchmark_evaluation.py
 python3 generate_paper_figures.py
 python3 generate_academic_figures.py
+python3 generate_presentation_pptx.py
 
 # 5. Compile Publication-Grade IEEE LaTeX Paper
 echo ">>> [5/5] Compiling IEEE Transactions LaTeX Paper to PDF..."
@@ -60,6 +61,7 @@ echo "========================================================================"
 echo " [COMPLETE] All benchmarks, tests, figures, and paper compiled cleanly!"
 echo " - Paper PDF:    paper/paper.pdf"
 echo " - Paper Source: paper/paper.tex & paper/PAPER.md"
+echo " - Slides (PPTX):slides/presentation.pptx"
 echo " - Slides (HTML):slides/presentation.html"
 echo " - Video Demo:   simulation_60s.mp4"
 echo "========================================================================"

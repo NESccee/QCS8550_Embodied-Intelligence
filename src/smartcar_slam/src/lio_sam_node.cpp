@@ -1,4 +1,5 @@
 #include <chrono>
+#include <deque>
 #include <memory>
 #include <string>
 #include <utility>
@@ -101,15 +102,16 @@ private:
 
     fused_odom_pub_->publish(out_odom);
 
-    // 更新轨迹
+    // 更新轨迹 (双端队列 O(1) 滑动窗口，消除 vector 首部连续擦除开销)
     geometry_msgs::msg::PoseStamped ps;
     ps.header = out_odom.header;
     ps.pose = out_odom.pose.pose;
-    path_msg_.header = out_odom.header;
-    path_msg_.poses.push_back(ps);
-    if (path_msg_.poses.size() > 500) {
-      path_msg_.poses.erase(path_msg_.poses.begin());
+    poses_cache_.push_back(ps);
+    if (poses_cache_.size() > 500) {
+      poses_cache_.pop_front();
     }
+    path_msg_.header = out_odom.header;
+    path_msg_.poses.assign(poses_cache_.begin(), poses_cache_.end());
     path_pub_->publish(path_msg_);
 
     // 发布退化诊断状态
@@ -126,6 +128,7 @@ private:
   double degeneracy_thresh_ = 25.0;
   rclcpp::Time last_imu_time_;
   LioSamOptimizer optimizer_;
+  std::deque<geometry_msgs::msg::PoseStamped> poses_cache_;
   nav_msgs::msg::Path path_msg_;
 
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;

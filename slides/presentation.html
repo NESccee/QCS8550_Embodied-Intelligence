@@ -10,18 +10,21 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
   <style>
     :root {
-      --primary: #2563eb;
+      --primary: #0e74de;
       --primary-dark: #1d4ed8;
-      --accent: #0ea5e9;
-      --bg: #0f172a;
-      --surface: #1e293b;
-      --surface-light: #334155;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --border: #475569;
-      --success: #10b981;
-      --warning: #f59e0b;
-      --danger: #ef4444;
+      --accent: #0284c7;
+      --accent-glow: rgba(14, 116, 222, 0.16);
+      --bg: #f0f7ff;
+      --surface: #ffffff;
+      --surface-light: #f8fafc;
+      --surface-alt: #e6f1fe;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #bfdbfe;
+      --title: #0f1e41;
+      --success: #0d9488;
+      --warning: #d97706;
+      --danger: #dc2626;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -32,20 +35,53 @@
       height: 100vh;
       display: flex;
       flex-direction: column;
+      user-select: none;
+    }
+    /* Top Progress Bar */
+    #progress-bar {
+      height: 3px;
+      background: linear-gradient(90deg, #38bdf8, #0e74de, #1d4ed8);
+      width: 0%;
+      transition: width 0.3s ease;
+      z-index: 100;
     }
     /* Presentation Header & Status */
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 12px 24px;
-      background: rgba(15, 23, 42, 0.85);
+      padding: 10px 24px;
+      background: rgba(255, 255, 255, 0.95);
       border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(8px);
+      box-shadow: 0 2px 10px rgba(14, 116, 222, 0.06);
+      backdrop-filter: blur(10px);
       z-index: 10;
     }
-    .header-title { font-size: 0.95rem; font-weight: 600; color: var(--accent); }
-    .slide-counter { font-size: 0.9rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .header-badge {
+      background: #e0efff;
+      color: var(--primary-dark);
+      border: 1px solid var(--border);
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .header-title { font-size: 0.92rem; font-weight: 700; color: var(--title); }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .slide-counter { font-size: 0.88rem; color: var(--text-muted); font-variant-numeric: tabular-nums; font-weight: 600; }
+    .header-btn {
+      background: var(--surface-light);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .header-btn:hover { background: var(--primary); border-color: var(--primary); color: #ffffff; }
     
     /* Main Slide Container */
     #slide-viewport {
@@ -54,23 +90,23 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 32px 48px;
+      padding: 24px 40px;
     }
     .slide {
       position: absolute;
       width: 100%;
-      max-width: 1100px;
-      height: 82vh;
+      max-width: 1160px;
+      height: 84vh;
       background: var(--surface);
-      border: 1px solid var(--border);
+      border: 1.5px solid var(--border);
       border-radius: 16px;
-      padding: 40px 48px;
+      padding: 36px 44px;
       display: none;
       flex-direction: column;
-      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
+      box-shadow: 0 20px 40px -15px rgba(14, 116, 222, 0.12);
       opacity: 0;
-      transform: translateY(20px);
-      transition: opacity 0.3s ease, transform 0.3s ease;
+      transform: translateY(16px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
       overflow-y: auto;
     }
     .slide.active {
@@ -80,82 +116,149 @@
     }
     
     /* Typography & Slide Elements */
-    h1.slide-title { font-size: 2.2rem; margin-bottom: 24px; color: #ffffff; border-bottom: 2px solid var(--primary); padding-bottom: 12px; }
-    h2.hero-title { font-size: 2.6rem; color: #ffffff; line-height: 1.25; margin-bottom: 16px; background: linear-gradient(135deg, #60a5fa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    h3.hero-subtitle { font-size: 1.3rem; color: var(--text-muted); font-weight: 400; margin-bottom: 32px; }
-    p { font-size: 1.05rem; line-height: 1.6; color: var(--text); margin-bottom: 16px; }
+    h1.slide-title { 
+      font-size: 2.1rem; 
+      margin-bottom: 20px; 
+      color: var(--title); 
+      border-bottom: 2.5px solid var(--primary); 
+      padding-bottom: 10px; 
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .slide-tag {
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: #e0efff;
+      color: var(--primary-dark);
+      border: 1px solid var(--border);
+      padding: 3px 10px;
+      border-radius: 6px;
+    }
+    h2.hero-title { 
+      font-size: 2.5rem; 
+      color: var(--title); 
+      line-height: 1.25; 
+      margin-bottom: 16px; 
+      background: linear-gradient(135deg, #0f1e41, #1d4ed8); 
+      -webkit-background-clip: text; 
+      -webkit-text-fill-color: transparent; 
+    }
+    h3.hero-subtitle { font-size: 1.2rem; color: var(--text-muted); font-weight: 500; margin-bottom: 28px; }
+    p { font-size: 1.0rem; line-height: 1.6; color: var(--text); margin-bottom: 14px; }
     
     /* Grid Layouts */
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 16px; }
-    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 16px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 14px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-top: 14px; }
+    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; margin-top: 14px; }
     .card {
       background: var(--surface-light);
-      border: 1px solid var(--border);
+      border: 1px solid #e2e8f0;
       border-radius: 12px;
-      padding: 20px 24px;
+      padding: 18px 22px;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .card h4 { font-size: 1.15rem; color: var(--accent); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-    .card p, .card li { font-size: 0.95rem; color: #cbd5e1; line-height: 1.5; }
-    ul { margin-left: 20px; margin-bottom: 12px; }
-    li { margin-bottom: 8px; }
+    .card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 4px 16px var(--accent-glow);
+    }
+    .card h4 { font-size: 1.08rem; color: var(--primary-dark); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; font-weight: 700; }
+    .card p, .card li { font-size: 0.92rem; color: #334155; line-height: 1.5; }
+    ul { margin-left: 18px; margin-bottom: 10px; }
+    li { margin-bottom: 6px; }
     
     /* Math / Formula styling */
     .formula-box {
-      background: rgba(15, 23, 42, 0.6);
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
       border-left: 4px solid var(--primary);
-      padding: 14px 20px;
+      padding: 12px 18px;
       border-radius: 6px;
-      margin: 16px 0;
-      font-size: 1.05rem;
+      margin: 14px 0;
+      font-size: 1.0rem;
+      color: var(--title);
     }
     
     /* Metrics Table */
     table.metric-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 16px;
-      font-size: 0.95rem;
+      margin-top: 14px;
+      font-size: 0.92rem;
     }
     table.metric-table th, table.metric-table td {
       border: 1px solid var(--border);
-      padding: 10px 14px;
+      padding: 9px 12px;
       text-align: left;
     }
-    table.metric-table th { background: rgba(37, 99, 235, 0.2); color: var(--accent); }
-    table.metric-table tr:nth-child(even) { background: rgba(255, 255, 255, 0.03); }
+    table.metric-table th { background: #dbeafe; color: var(--primary-dark); font-weight: 700; }
+    table.metric-table tr:nth-child(even) { background: #f8fafc; }
+    table.metric-table tr:hover { background: #f0f7ff; }
     .tag-success { color: var(--success); font-weight: bold; }
-    .tag-highlight { color: #38bdf8; font-weight: bold; }
+    .tag-highlight { color: var(--primary-dark); font-weight: bold; }
 
     /* Footer Controls */
     footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 14px 28px;
-      background: rgba(15, 23, 42, 0.9);
+      padding: 12px 28px;
+      background: rgba(255, 255, 255, 0.95);
       border-top: 1px solid var(--border);
+      box-shadow: 0 -2px 10px rgba(14, 116, 222, 0.04);
     }
     .nav-btn {
       background: var(--primary);
       color: white;
       border: none;
-      padding: 8px 18px;
+      padding: 7px 18px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       font-weight: 500;
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
     .nav-btn:hover { background: var(--primary-dark); }
-    .nav-btn:disabled { background: var(--surface-light); color: var(--text-muted); cursor: not-allowed; }
-    .key-hints { font-size: 0.82rem; color: var(--text-muted); }
+    .nav-btn:disabled { background: #e2e8f0; color: var(--text-muted); cursor: not-allowed; }
+    .key-hints { font-size: 0.8rem; color: var(--text-muted); }
+    kbd {
+      background: #e0efff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-family: monospace;
+      color: var(--primary-dark);
+    }
   </style>
 </head>
 <body>
 
+  <!-- Top Progress Bar -->
+  <div id="progress-bar"></div>
+
+  <!-- Header -->
   <header>
-    <div class="header-title">IEEE 学术答辩与项目汇报 | Multi-Sensor Fusion SLAM & Dynamic Navigation</div>
-    <div class="slide-counter" id="slide-num">1 / 10</div>
+    <div class="header-left">
+      <span class="header-badge">IEEE T-RO / RA-L ARTIFACT</span>
+      <div class="header-title">多传感器融合 SLAM 与语义自主导航系统 | 学术汇报与成果答辩</div>
+    </div>
+    <div class="header-right">
+      <button class="header-btn" onclick="toggleFullScreen()" title="切换全屏模式 (快捷键: F)">⛶ 全屏模式</button>
+      <select id="slide-jump" class="header-btn" onchange="jumpToSlide(this.value)">
+        <option value="0">1. 首页封面</option>
+        <option value="1">2. 研究背景与三大科学挑战</option>
+        <option value="2">3. 系统总体技术架构</option>
+        <option value="3">4. 创新一：自适应退化感知与因子图重调权</option>
+        <option value="4">5. 创新二：跨域语义投影与 Depth-PROSAC 滤波</option>
+        <option value="5">6. 创新三：非对称速度矢量椭圆与重规划</option>
+        <option value="6">7. 工程健全性：分层 Costmap、前视检索与节点池</option>
+        <option value="7">8. 高保真数字孪生实验场与 AMR 机器人</option>
+        <option value="8">9. 实验评估与核心量化指标对比</option>
+        <option value="9">10. 动态避障消融实验与通行效率分析</option>
+        <option value="10">11. 总结、学术贡献与开源生态交付</option>
+      </select>
+      <div class="slide-counter" id="slide-num">1 / 11</div>
+    </div>
   </header>
 
   <div id="slide-viewport">
@@ -163,85 +266,85 @@
     <!-- Slide 1: Title -->
     <div class="slide active">
       <div style="margin: auto 0;">
-        <span style="background: rgba(37,99,235,0.2); color: #60a5fa; border: 1px solid rgba(37,99,235,0.4); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Paper Defense & Open-Source System</span>
+        <span style="background: #e0efff; color: var(--primary-dark); border: 1px solid var(--border); padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; text-transform: uppercase;">Autonomous Robotics &amp; Intelligent Systems</span>
         <h2 class="hero-title" style="margin-top: 18px;">面向复杂室内环境的自主移动机器人<br>退化自适应多传感器融合 SLAM 与语义动态导航</h2>
-        <h3 class="hero-subtitle">Adaptive Degeneracy-Aware Multi-Sensor Fusion SLAM and Semantic-Informed Dynamic Navigation for AMRs in Complex Indoor Environments</h3>
-        <p style="color: #cbd5e1; margin-bottom: 24px;"><b>汇报人：</b> 智能机器人系统联合攻关团队 &nbsp;|&nbsp; <b>指导教师：</b> 机器人学与自主系统实验室</p>
+        <h3 class="hero-subtitle">Adaptive Degeneracy-Aware Multi-Sensor Fusion SLAM and Semantic-Informed Dynamic Navigation for AMRs</h3>
+        <p style="color: var(--text-muted); margin-bottom: 24px;"><b>汇报人：</b> 智能机器人系统联合攻关团队 &nbsp;|&nbsp; <b>指导教师：</b> 机器人学与自主系统实验室</p>
         <div style="display: flex; gap: 16px; margin-top: 20px;">
-          <div class="card" style="padding: 12px 18px; background: rgba(37, 99, 235, 0.1); border-color: rgba(37, 99, 235, 0.3);">
-            <div style="font-size: 0.8rem; color: var(--text-muted);">核心指标达成</div>
-            <div style="font-size: 1.25rem; font-weight: bold; color: #38bdf8;">100m 漂移 < 2.14 cm</div>
+          <div class="card" style="flex: 1; border-left: 4px solid var(--primary); padding: 14px 18px; background: #ffffff;">
+            <b style="color: var(--primary);">100m 终点累积漂移</b>
+            <div style="font-size: 1.6rem; font-weight: 800; color: var(--title); margin-top: 4px;">2.14 cm <span style="font-size: 0.9rem; font-weight: 400; color: var(--success);">(指标要求 &lt; 10 cm)</span></div>
           </div>
-          <div class="card" style="padding: 12px 18px; background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3);">
-            <div style="font-size: 0.8rem; color: var(--text-muted);">动态噪点滤除</div>
-            <div style="font-size: 1.25rem; font-weight: bold; color: var(--success);">97.95% 拖影消除率</div>
+          <div class="card" style="flex: 1; border-left: 4px solid var(--success); padding: 14px 18px; background: #ffffff;">
+            <b style="color: var(--success);">动态拖影消除率</b>
+            <div style="font-size: 1.6rem; font-weight: 800; color: var(--title); margin-top: 4px;">97.95% <span style="font-size: 0.9rem; font-weight: 400; color: var(--text-muted);">(背景保留 99.4%)</span></div>
           </div>
-          <div class="card" style="padding: 12px 18px; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3);">
-            <div style="font-size: 0.8rem; color: var(--text-muted);">动态避障效率提升</div>
-            <div style="font-size: 1.25rem; font-weight: bold; color: var(--warning);">通行耗时降低 36.3%</div>
+          <div class="card" style="flex: 1; border-left: 4px solid var(--warning); padding: 14px 18px; background: #ffffff;">
+            <b style="color: var(--warning);">动态穿行效率提升</b>
+            <div style="font-size: 1.6rem; font-weight: 800; color: var(--title); margin-top: 4px;">+36.3% <span style="font-size: 0.9rem; font-weight: 400; color: var(--text-muted);">(重规划延迟 &lt; 20 ms)</span></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Slide 2: Research Motivation & Problem Statement -->
+    <!-- Slide 2: Problem Formulation -->
     <div class="slide">
-      <h1 class="slide-title">1. 研究背景与核心科学问题</h1>
-      <p>自主移动机器人（AMR）从结构化工厂走向复杂室内人机共存场景（如医院、科研院所、仓储走廊），面临三大传统方法难以解决的挑战：</p>
+      <h1 class="slide-title">1. 研究背景与三大核心挑战 <span class="slide-tag">Background &amp; Motivation</span></h1>
+      <p>自主移动机器人（AMR）进入仓储物流、医院、科研实验室等高动态人机共融场景，面临三大共性瓶颈难题：</p>
       <div class="grid-3">
         <div class="card">
-          <h4><span style="font-size: 1.4rem;">⚠️</span> 走廊特征退化 (Degeneracy)</h4>
-          <p>在长直走廊或低纹理房间中，LiDAR 点云在纵向缺乏有效几何约束，正规方程组 $\mathbf{J}^T \mathbf{J}$ 发生秩亏，标准 LIO-SAM 产生严重的沿走廊纵向漂移与滑移。</p>
+          <h4><span style="font-size: 1.3rem;">⚠️</span> 走廊退化致纵向滑移</h4>
+          <p>长直走廊与低纹理空间几何特征单一，信息矩阵在轴向严重秩亏（$\mathbf{J}^T \mathbf{J}$ 奇异），经典 LIO-SAM 产生纵向漂移与位姿跳变。</p>
         </div>
         <div class="card">
-          <h4><span style="font-size: 1.4rem;">👻</span> 动态障碍物拖影 (Ghosting)</h4>
-          <p>穿行的行人等移动目标在点云累积建图中留下严重的连续拖影假阳性障碍，污染全局地图并阻断原本通畅的通行走廊。</p>
+          <h4><span style="font-size: 1.3rem;">👻</span> 动态行人穿行产生拖影</h4>
+          <p>行走中的行人被激光雷达高频点云击中，在地图中留下大片伪影噪点；传统投影滤除法又往往“凿穿”后方背景墙体，破坏建图一致性。</p>
         </div>
         <div class="card">
-          <h4><span style="font-size: 1.4rem;">🛑</span> 传统代价地图过度保守</h4>
+          <h4><span style="font-size: 1.3rem;">🛑</span> 传统代价地图过度保守</h4>
           <p>传统局部代价地图将行人对称向外膨胀，不仅在行进前方缺乏预警裕度，而且阻断了行人后方可通行区域，导致小车频繁停滞与死锁。</p>
         </div>
       </div>
       <div class="formula-box" style="margin-top: 24px;">
-        <b>研究目标：</b> 构建一套软硬件高度协同的多传感器因子图自适应融合 SLAM、语义跨域映射与非对称速度矢量闭环导航系统。
+        <b>研究目标：</b> 构建一套软硬件高度协同的多传感器因子图自适应融合 SLAM、语义跨域映射、非对称速度矢量闭环导航与工程级高稳健运行系统。
       </div>
     </div>
 
     <!-- Slide 3: Overall Architecture -->
     <div class="slide">
-      <h1 class="slide-title">2. 系统总体技术架构</h1>
+      <h1 class="slide-title">2. 系统总体技术架构 <span class="slide-tag">System Architecture</span></h1>
       <div style="text-align: center; margin-bottom: 12px;">
         <img src="../paper/figures/system_architecture.svg" style="max-width: 100%; height: auto; max-height: 270px; border-radius: 8px; border: 1px solid var(--border);" alt="System Architecture"/>
       </div>
       <div class="grid-2">
         <div class="card" style="padding: 12px 16px;">
-          <h4 style="font-size: 1.05rem;">底层感知与因子图估计</h4>
-          <p style="font-size: 0.9rem;">3D LiDAR + 200 Hz IMU 流形预积分；$\mathbf{J}^T \mathbf{J}$ 实时特征值分解与自适应加权求解器。</p>
+          <h4 style="font-size: 1.02rem;">底层感知与因子图估计</h4>
+          <p style="font-size: 0.88rem;">3D LiDAR + 200 Hz IMU 流形预积分；$\mathbf{J}^T \mathbf{J}$ 实时特征值分解与自适应加权求解器。</p>
         </div>
         <div class="card" style="padding: 12px 16px;">
-          <h4 style="font-size: 1.05rem;">语义投影与非对称动态规划</h4>
-          <p style="font-size: 0.9rem;">YOLOv8/Mask R-CNN 跨域映射；Depth-PROSAC 剔除动态拖影；非对称速度椭圆 + A*-TEB 闭环规划。</p>
+          <h4 style="font-size: 1.02rem;">语义投影与非对称动态规划</h4>
+          <p style="font-size: 0.88rem;">YOLOv8/Mask R-CNN 跨域映射；Depth-PROSAC 剔除动态拖影；非对称速度椭圆 + A*-TEB 闭环规划。</p>
         </div>
       </div>
     </div>
 
     <!-- Slide 4: Innovation 1 - Degeneracy-Aware Factor Graph SLAM -->
     <div class="slide">
-      <h1 class="slide-title">3. 创新点一：自适应退化感知与因子图重调权</h1>
+      <h1 class="slide-title">3. 创新点一：自适应退化感知与因子图重调权 <span class="slide-tag">Degeneracy-Aware SLAM</span></h1>
       <p>针对走廊环境正规方程 $\mathbf{H} \Delta \mathbf{x} = \mathbf{b}$ 出现的病态求逆问题，提出基于特征值分解的自适应残差加权算法：</p>
       <div style="text-align: center; margin-bottom: 12px;">
-        <img src="../paper/figures/degeneracy_factor_graph.svg" style="max-width: 100%; height: auto; max-height: 230px; border-radius: 8px; border: 1px solid var(--border);" alt="Degeneracy Factor Graph"/>
+        <img src="../paper/figures/degeneracy_factor_graph.svg" style="max-width: 100%; height: auto; max-height: 220px; border-radius: 8px; border: 1px solid var(--border);" alt="Degeneracy Factor Graph"/>
       </div>
       <div class="formula-box">
         $$\mathbf{H} = \sum_k \mathbf{J}_k^{\top} \mathbf{J}_k = \mathbf{V} \boldsymbol{\Lambda} \mathbf{V}^{\top}, \quad w_L = \operatorname{clamp}\left( \frac{\lambda_{\min}}{\lambda_{\text{thresh}}}, 0.10, 1.0 \right)$$
       </div>
       <div class="grid-2">
         <div class="card" style="padding: 10px 16px;">
-          <h4 style="font-size: 1.0rem;">开阔几何丰富环境 ($\lambda_{\min} \ge 25.0$)</h4>
+          <h4 style="font-size: 0.98rem;">开阔几何丰富环境 ($\lambda_{\min} \ge 25.0$)</h4>
           <p style="font-size: 0.88rem;">$w_L = 1.0$，充分利用 3D LiDAR 点面匹配的高精度几何约束提供厘米级位姿基准。</p>
         </div>
         <div class="card" style="padding: 10px 16px;">
-          <h4 style="font-size: 1.0rem;">长直走廊/低纹理环境 ($\lambda_{\min} < 25.0$)</h4>
+          <h4 style="font-size: 0.98rem;">长直走廊/低纹理环境 ($\lambda_{\min} < 25.0$)</h4>
           <p style="font-size: 0.88rem;">$w_L \to 0.10$，抑制纵向不确定激光残差，由 200 Hz IMU 流形预积分刚性约束消除滑移。</p>
         </div>
       </div>
@@ -249,7 +352,7 @@
 
     <!-- Slide 5: Innovation 2 - Depth-PROSAC Semantic Projection -->
     <div class="slide">
-      <h1 class="slide-title">4. 创新点二：跨域语义投影与 Depth-PROSAC 动态点云消除</h1>
+      <h1 class="slide-title">4. 创新点二：跨域语义投影与 Depth-PROSAC 动态点云消除 <span class="slide-tag">Depth-PROSAC</span></h1>
       <p>将 2D 图像语义分割投射至 3D 点云空间，结合渐进采样一致性，消除动态行人引起的伪影：</p>
       <div class="formula-box">
         $$Z_C \begin{bmatrix} u \\ v \\ 1 \end{bmatrix} = \mathbf{K} \mathbf{T}_C^L \mathbf{P}_L = \begin{bmatrix} f_x & 0 & c_x \\ 0 & f_y & c_y \\ 0 & 0 & 1 \end{bmatrix} \begin{bmatrix} \mathbf{R}_C^L & \mathbf{t}_C^L \\ \mathbf{0} & 1 \end{bmatrix} \begin{bmatrix} X_L \\ Y_L \\ Z_L \\ 1 \end{bmatrix}$$
@@ -268,7 +371,7 @@
 
     <!-- Slide 6: Innovation 3 - Asymmetric Velocity Ellipse & Replanning -->
     <div class="slide">
-      <h1 class="slide-title">5. 创新点三：非对称速度矢量膨胀与闭环重规划</h1>
+      <h1 class="slide-title">5. 创新点三：非对称速度矢量膨胀与闭环重规划 <span class="slide-tag">Asymmetric Navigation</span></h1>
       <p>突破传统对称圆代价膨胀的局限，构建沿行人运动方向定向扩张的非对称动态保护包络：</p>
       <div style="text-align: center; margin-bottom: 12px;">
         <img src="../paper/figures/asymmetric_costmap_concept.svg" style="max-width: 100%; height: auto; max-height: 220px; border-radius: 8px; border: 1px solid var(--border);" alt="Asymmetric Costmap Concept"/>
@@ -278,19 +381,51 @@
       </div>
       <div class="grid-2">
         <div class="card" style="padding: 10px 16px;">
-          <h4 style="font-size: 1.0rem;">TEB 局部弹性时间带轨迹优化</h4>
+          <h4 style="font-size: 0.98rem;">TEB 局部弹性时间带轨迹优化</h4>
           <p style="font-size: 0.88rem;">在非对称代价场中优化软硬件动力学约束，保持平滑连续速度发布。</p>
         </div>
         <div class="card" style="padding: 10px 16px;">
-          <h4 style="font-size: 1.0rem;">双闭环重规划状态机</h4>
+          <h4 style="font-size: 0.98rem;">双闭环重规划状态机</h4>
           <p style="font-size: 0.88rem;">通路受阻时触发全局 A* 拓扑重新寻优，响应时间 <span class="tag-highlight">&lt; 20 ms</span>，杜绝停顿。</p>
         </div>
       </div>
     </div>
 
-    <!-- Slide 7: High-Fidelity Testbed & AMR Robot Platform -->
+    <!-- Slide 7: Engineering Rigor & Algorithmic Robustness -->
     <div class="slide">
-      <h1 class="slide-title">6. 高保真实验场地与工业级 AMR 仿真平台</h1>
+      <h1 class="slide-title">6. 工程健全性与算法闭环深度优化 <span class="slide-tag">Engineering Rigor</span></h1>
+      <p>为保障整车在真实场景与长时间连续巡检中的极高鲁棒性，系统实施了四项关键算法级工程突破：</p>
+      <div class="grid-2">
+        <div class="card">
+          <h4>🛡️ Costmap 静态/动态双层架构</h4>
+          <div class="formula-box" style="margin: 8px 0; padding: 6px 12px; font-size: 0.9rem;">
+            $$\mathcal{C}_{\text{sem}}(x,y) = \max(\mathcal{C}_{\text{static}}(x,y), \mathcal{C}_{\text{dynamic}}(x,y))$$
+          </div>
+          <p>在规划主循环起始调用 <code>clear_dynamic_layer()</code>，毫秒级清空动态层并将合成代价恢复为静态层，彻底消除行人位移产生的历史残留幽灵障碍。</p>
+        </div>
+        <div class="card">
+          <h4>🎯 TEB 路径投影前瞻检索（杜绝倒退死锁）</h4>
+          <div class="formula-box" style="margin: 8px 0; padding: 6px 12px; font-size: 0.9rem;">
+            $$i^* = \arg\min_i \|\mathbf{w}_i - \mathbf{p}\|_2^2, \quad k^* = \min \{ k \ge i^* \mid \|\mathbf{w}_k - \mathbf{p}\|_2 \ge d_{\text{lookahead}} \}$$
+          </div>
+          <p>计算当前位姿在全局路径上的正交最近投影点，再沿车头行进方向检索前瞻点，彻底解决小车行进后前视点倒退锁死在原点的传统缺陷。</p>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top: 14px;">
+        <div class="card">
+          <h4>⚡ A* 静态节点池与版本号零堆分配</h4>
+          <p>引入预分配 <code>nodes_pool_</code> 结合 32-bit <code>run_id_</code> 版本代号机制，状态重置代价从全图遍历降为 $O(1)$，消除了 $200 \times 200$ 网格每秒 5 次的 1.28 MB 频繁堆内存分配与垃圾回收抖动，寻径耗时降至 &lt; 1 ms。</p>
+        </div>
+        <div class="card">
+          <h4>🧪 24 项 GoogleTest 自动化单元测试矩阵</h4>
+          <p>构建包含退化自适应加权、极限奇异值解算、语义外参投影、Costmap 数据隔离、前瞻单调检索及多次规划状态无污染的 24 项完整单元测试，<b>100% 通过率（0 errors, 0 failures）</b>，外加真实仿真冒烟闭环验证。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 8: High-Fidelity Testbed & AMR Robot Platform -->
+    <div class="slide">
+      <h1 class="slide-title">7. 高保真实验场地与工业级 AMR 仿真平台 <span class="slide-tag">Digital Twin Platform</span></h1>
       <div class="grid-2">
         <div class="card">
           <h4>真实机器人实验室数字孪生建模</h4>
@@ -309,25 +444,25 @@
           </ul>
         </div>
       </div>
-      <div class="card" style="margin-top: 16px; background: rgba(37,99,235,0.08);">
+      <div class="card" style="margin-top: 16px; background: var(--surface-alt); border-color: var(--border);">
         <b>世界全局视角 (World Perspective) 录制验证：</b> 固定架设于世界坐标 $(2.0, -4.6, 5.2)$，俯角 $47^\circ$，无抖动呈现小车在完整实验场内的多回路闭环导航。
       </div>
     </div>
 
-    <!-- Slide 8: Experimental Benchmarks & Quantitative Evaluation -->
+    <!-- Slide 9: Experimental Benchmarks & Quantitative Evaluation -->
     <div class="slide">
-      <h1 class="slide-title">7. 实验评估与核心量化指标对比</h1>
+      <h1 class="slide-title">8. 实验评估与核心量化指标对比 <span class="slide-tag">Empirical Results</span></h1>
       <p>在累积行驶里程超过 $100\text{ m}$ 的闭环巡航中，对比纯轮速计、标准 LIO-SAM 与本文提出的自适应融合方法：</p>
       
       <!-- Embedded Vector Visualizations -->
-      <div class="grid-2" style="margin-bottom: 16px;">
+      <div class="grid-2" style="margin-bottom: 12px;">
         <div style="text-align: center;">
-          <img src="../paper/figures/trajectory_comparison.svg" style="max-width: 100%; height: auto; max-height: 220px; border-radius: 8px; border: 1px solid var(--border);" alt="Trajectory Comparison"/>
-          <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px;">多回路闭环轨迹对比（走廊段 LIO-SAM 严重纵向滑移，本文方法紧贴真值）</div>
+          <img src="../paper/figures/trajectory_comparison.svg" style="max-width: 100%; height: auto; max-height: 200px; border-radius: 8px; border: 1px solid var(--border);" alt="Trajectory Comparison"/>
+          <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">多回路闭环轨迹对比（走廊段 LIO-SAM 严重纵向滑移，本文方法紧贴真值）</div>
         </div>
         <div style="text-align: center;">
-          <img src="../paper/figures/error_vs_time.svg" style="max-width: 100%; height: auto; max-height: 220px; border-radius: 8px; border: 1px solid var(--border);" alt="Error vs Time"/>
-          <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px;">120s ATE 位姿误差演化（绿色虚线为 10cm/100m 目标指标线）</div>
+          <img src="../paper/figures/error_vs_time.svg" style="max-width: 100%; height: auto; max-height: 200px; border-radius: 8px; border: 1px solid var(--border);" alt="Error vs Time"/>
+          <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">120s ATE 位姿误差演化（绿色虚线为 10cm/100m 目标指标线）</div>
         </div>
       </div>
 
@@ -365,21 +500,11 @@
           </tr>
         </tbody>
       </table>
-      <div class="grid-2" style="margin-top: 14px;">
-        <div class="card" style="padding: 10px 16px;">
-          <h4 style="font-size: 0.95rem;">退化检测灵敏度评估</h4>
-          <p style="font-size: 0.85rem;">走廊退化识别召回率达 <b>100.0%</b>，开阔空间误报率为 <b>0.0%</b>；退化因子权重平均抑制至 <b>0.149</b>。</p>
-        </div>
-        <div class="card" style="padding: 10px 16px;">
-          <h4 style="font-size: 0.95rem;">动态噪点滤除与保留率</h4>
-          <p style="font-size: 0.85rem;">Depth-PROSAC 动态点云滤除精准率 <b>97.52%</b>，召回率 <b>97.95%</b>，背景墙体保留率 <b>99.4%</b>。</p>
-        </div>
-      </div>
     </div>
 
-    <!-- Slide 9: Navigation Ablation Study -->
+    <!-- Slide 10: Navigation Ablation Study -->
     <div class="slide">
-      <h1 class="slide-title">8. 动态避障消融实验与通行效率分析</h1>
+      <h1 class="slide-title">9. 动态避障消融实验与通行效率分析 <span class="slide-tag">Ablation Study</span></h1>
       <p>针对不同速度动态行人穿行场景，测试传统对称膨胀与本文非对称速度椭圆的通行效能：</p>
       <table class="metric-table">
         <thead>
@@ -424,31 +549,31 @@
       </div>
     </div>
 
-    <!-- Slide 10: Conclusion & Open Source Release -->
+    <!-- Slide 11: Conclusion & Open Source Release -->
     <div class="slide">
-      <h1 class="slide-title">9. 总结与开源生态建设</h1>
+      <h1 class="slide-title">10. 总结与开源生态建设 <span class="slide-tag">Conclusion &amp; Delivery</span></h1>
       <div class="grid-2">
         <div class="card">
           <h4>学术贡献总结 (Contributions)</h4>
           <ul>
             <li><b>理论贡献：</b> 建立了基于雅可比矩阵信息熵特征值分解的自适应因子图重调权机制，彻底解决走廊几何退化难题。</li>
-            <li><b>算法贡献：</b> 提出了跨域映射与 Depth-PROSAC 算法，实现高保真无拖影建图；构建非对称速度椭圆代价地图。</li>
+            <li><b>算法贡献：</b> 提出了跨域映射与 Depth-PROSAC 算法，实现高保真无拖影建图；构建非对称速度椭圆与闭环重规划。</li>
             <li><b>工程贡献：</b> 研制全地形 AMR 仿真模型与真实数字孪生实验环境，闭环验证精度达厘米级。</li>
           </ul>
         </div>
         <div class="card">
           <h4>完整开源套件交付 (Open-Source Deliverables)</h4>
           <ul>
-            <li><b>学术论文：</b> LaTeX / Markdown 完整论文源码与矢量架构图。</li>
-            <li><b>代码仓库：</b> 包含 <code>smartcar_slam</code> 与 <code>smartcar_teleop</code> 全功能 ROS 2 软件包。</li>
+            <li><b>学术论文：</b> LaTeX / Markdown 完整论文源码与矢量架构图（IEEE T-RO 6 页标准排版）。</li>
+            <li><b>代码仓库：</b> 包含 <code>smartcar_slam</code> 与 <code>smartcar_teleop</code> 全功能 ROS 2 软件包（24 项测试全通过）。</li>
             <li><b>仿真世界与模型：</b> 真实实验室 SDF 场景与高保真 AMR 工业模型。</li>
             <li><b>演示与录像：</b> 60 秒世界全局视角高清演示视频 (<code>simulation_60s.mp4</code>)。</li>
           </ul>
         </div>
       </div>
-      <div style="text-align: center; margin-top: 36px;">
-        <h2 style="color: #60a5fa; font-size: 1.8rem;">感谢各位专家评委与学者批评指正！</h2>
-        <p style="color: var(--text-muted); margin-top: 8px;">Q & A 答辩环节</p>
+      <div style="text-align: center; margin-top: 28px;">
+        <h2 style="color: var(--primary-dark); font-size: 1.8rem; font-weight: 800;">感谢各位专家评委与学者批评指正！</h2>
+        <p style="color: var(--text-muted); margin-top: 8px;">Q &amp; A 答辩环节</p>
       </div>
     </div>
 
@@ -456,7 +581,7 @@
 
   <footer>
     <div>
-      <span class="key-hints">使用键盘 <b>[←]</b> / <b>[→]</b> 或空格键翻页</span>
+      <span class="key-hints">操作提示：使用键盘 <kbd>→</kbd> / <kbd>←</kbd> 或 <kbd>Space</kbd> 翻页，<kbd>F</kbd> 全屏，<kbd>Home</kbd> / <kbd>End</kbd> 首页/尾页</span>
     </div>
     <div style="display: flex; gap: 12px;">
       <button class="nav-btn" id="prev-btn" onclick="prevSlide()">上一页 (Prev)</button>
@@ -471,6 +596,8 @@
     const counter = document.getElementById('slide-num');
     const prevBtn = document.getElementById('prev-btn');
     const nextBtn = document.getElementById('next-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const jumpSelect = document.getElementById('slide-jump');
 
     function updateSlide(index) {
       if (index < 0 || index >= totalSlides) return;
@@ -478,23 +605,52 @@
       currentSlide = index;
       slides[currentSlide].classList.add('active');
       counter.innerText = `${currentSlide + 1} / ${totalSlides}`;
+      jumpSelect.value = currentSlide;
+      progressBar.style.width = `${((currentSlide + 1) / totalSlides) * 100}%`;
       prevBtn.disabled = currentSlide === 0;
       nextBtn.disabled = currentSlide === totalSlides - 1;
     }
 
     function nextSlide() { updateSlide(currentSlide + 1); }
     function prevSlide() { updateSlide(currentSlide - 1); }
+    function jumpToSlide(val) { updateSlide(parseInt(val, 10)); }
+
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    }
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
         nextSlide();
       } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
         prevSlide();
+      } else if (e.key === 'Home') {
+        updateSlide(0);
+      } else if (e.key === 'End') {
+        updateSlide(totalSlides - 1);
+      } else if (e.key === 'f' || e.key === 'F') {
+        toggleFullScreen();
       }
     });
+
+    // Touch swipe support for touchscreens
+    let touchStartX = 0;
+    document.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+    document.addEventListener('touchend', (e) => {
+      const touchEndX = e.changedTouches[0].screenX;
+      if (touchEndX - touchStartX > 50) prevSlide();
+      if (touchStartX - touchEndX > 50) nextSlide();
+    }, { passive: true });
 
     updateSlide(0);
   </script>
 </body>
 </html>
-

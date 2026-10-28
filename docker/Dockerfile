@@ -42,3 +42,4 @@ RUN /bin/bash -c "source /opt/ros/humble/setup.bash && \
 
 ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/humble/setup.bash && source /ros2_ws/src/SmartCar_Gazebo_ws/install/setup.bash && exec \"$@\"", "--"]
 CMD ["bash", "/ros2_ws/src/SmartCar_Gazebo_ws/scripts/reproduce_benchmarks.sh"]
+

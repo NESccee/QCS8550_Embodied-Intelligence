@@ -13,7 +13,7 @@
 namespace smartcar_slam
 {
 
-/// @brief 二维栅格地图与语义代价地图
+/// @brief 二维栅格地图与语义代价地图（支持静态层与动态障碍物层分层更新与消除）
 struct SemanticCostmap
 {
   double resolution = 0.05;  // 5 cm 每格
@@ -22,10 +22,14 @@ struct SemanticCostmap
   double origin_x = -5.0;
   double origin_y = -5.0;
 
+  std::vector<int8_t> static_costs;
+  std::vector<int8_t> dynamic_costs;
   std::vector<int8_t> costs;
 
   SemanticCostmap()
   {
+    static_costs.assign(width * height, 0);
+    dynamic_costs.assign(width * height, 0);
     costs.assign(width * height, 0);
   }
 
@@ -48,11 +52,40 @@ struct SemanticCostmap
     return costs[my * width + mx];
   }
 
+  int8_t get_static_cost(int mx, int my) const
+  {
+    if (mx < 0 || mx >= width || my < 0 || my >= height) return 100;
+    return static_costs[my * width + mx];
+  }
+
+  int8_t get_dynamic_cost(int mx, int my) const
+  {
+    if (mx < 0 || mx >= width || my < 0 || my >= height) return 100;
+    return dynamic_costs[my * width + mx];
+  }
+
   void set_cost(int mx, int my, int8_t cost)
   {
     if (mx >= 0 && mx < width && my >= 0 && my < height) {
-      costs[my * width + mx] = cost;
+      int idx = my * width + mx;
+      static_costs[idx] = cost;
+      costs[idx] = std::max(static_costs[idx], dynamic_costs[idx]);
     }
+  }
+
+  /// @brief 清空动态障碍物代价层（在感知周期开始时调用，消除动态拖影与历史残留）
+  void clear_dynamic_layer()
+  {
+    std::fill(dynamic_costs.begin(), dynamic_costs.end(), 0);
+    costs = static_costs;
+  }
+
+  /// @brief 完全重置代价地图（清空静态与动态层）
+  void reset()
+  {
+    std::fill(static_costs.begin(), static_costs.end(), 0);
+    std::fill(dynamic_costs.begin(), dynamic_costs.end(), 0);
+    std::fill(costs.begin(), costs.end(), 0);
   }
 
   /// @brief 针对普通障碍物做静态膨胀
@@ -67,7 +100,11 @@ struct SemanticCostmap
         if (dx * dx + dy * dy <= cell_r * cell_r) {
           int mx = center_mx + dx;
           int my = center_my + dy;
-          set_cost(mx, my, std::max(get_cost(mx, my), static_cast<int8_t>(100)));
+          if (mx >= 0 && mx < width && my >= 0 && my < height) {
+            int idx = my * width + mx;
+            static_costs[idx] = std::max(static_costs[idx], static_cast<int8_t>(100));
+            costs[idx] = std::max(static_costs[idx], dynamic_costs[idx]);
+          }
         }
       }
     }
@@ -109,15 +146,19 @@ struct SemanticCostmap
         if (ellipse_val <= 1.0) {
           int mx = center_mx + dx;
           int my = center_my + dy;
-          int8_t cost = static_cast<int8_t>(100.0 * (1.0 - 0.3 * ellipse_val));
-          set_cost(mx, my, std::max(get_cost(mx, my), cost));
+          if (mx >= 0 && mx < width && my >= 0 && my < height) {
+            int idx = my * width + mx;
+            int8_t cost = static_cast<int8_t>(100.0 * (1.0 - 0.3 * ellipse_val));
+            dynamic_costs[idx] = std::max(dynamic_costs[idx], cost);
+            costs[idx] = std::max(static_costs[idx], dynamic_costs[idx]);
+          }
         }
       }
     }
   }
 };
 
-/// @brief 全局路径规划：A* 算法（支持对角移动与语义安全距离代价启发）
+/// @brief 全局路径规划：A* 算法（支持对角移动、语义安全距离代价启发与节点池重用优化）
 class GlobalPlannerAStar
 {
 public:
@@ -127,6 +168,8 @@ public:
     double g_cost = std::numeric_limits<double>::infinity();
     double f_cost = std::numeric_limits<double>::infinity();
     int parent_mx = -1, parent_my = -1;
+    uint32_t run_id = 0;
+    bool closed = false;
   };
 
   struct CompareNode
@@ -155,21 +198,49 @@ public:
 
     const int w = costmap.width;
     const int h = costmap.height;
-    std::vector<Node> all_nodes(w * h);
-    for (int y = 0; y < h; ++y) {
-      for (int x = 0; x < w; ++x) {
-        all_nodes[y * w + x].mx = x;
-        all_nodes[y * w + x].my = y;
+    const std::size_t total_size = static_cast<std::size_t>(w * h);
+
+    // 内存池重用：仅当地图尺寸改变时调整大小并初始化一次坐标，杜绝每帧堆内存反复分配 (1.28MB/帧)
+    if (nodes_pool_.size() != total_size) {
+      nodes_pool_.resize(total_size);
+      for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+          nodes_pool_[y * w + x].mx = x;
+          nodes_pool_[y * w + x].my = y;
+          nodes_pool_[y * w + x].run_id = 0;
+        }
       }
+      run_id_ = 0;
     }
 
-    std::priority_queue<Node *, std::vector<Node *>, CompareNode> open_set;
-    std::vector<bool> closed_set(w * h, false);
+    // 通过版本代号 (run_id) 标记，实现 O(1) 代价的全局规划器状态重置
+    ++run_id_;
+    if (run_id_ == 0) {  // 32 位溢出防御
+      for (auto & node : nodes_pool_) {
+        node.run_id = 0;
+      }
+      run_id_ = 1;
+    }
 
-    Node * start_node = &all_nodes[start_my * w + start_mx];
-    start_node->g_cost = 0.0;
-    start_node->f_cost = heuristic(start_mx, start_my, goal_mx, goal_my);
-    open_set.push(start_node);
+    auto get_node = [this, w](int x, int y) -> Node & {
+      Node & n = nodes_pool_[y * w + x];
+      if (n.run_id != run_id_) {
+        n.run_id = run_id_;
+        n.g_cost = std::numeric_limits<double>::infinity();
+        n.f_cost = std::numeric_limits<double>::infinity();
+        n.parent_mx = -1;
+        n.parent_my = -1;
+        n.closed = false;
+      }
+      return n;
+    };
+
+    std::priority_queue<Node *, std::vector<Node *>, CompareNode> open_set;
+
+    Node & start_node = get_node(start_mx, start_my);
+    start_node.g_cost = 0.0;
+    start_node.f_cost = heuristic(start_mx, start_my, goal_mx, goal_my) * costmap.resolution;
+    open_set.push(&start_node);
 
     static const int dx[8] = {1, -1, 0, 0, 1, -1, 1, -1};
     static const int dy[8] = {0, 0, 1, -1, 1, 1, -1, -1};
@@ -186,9 +257,8 @@ public:
         break;
       }
 
-      int idx = current->my * w + current->mx;
-      if (closed_set[idx]) continue;
-      closed_set[idx] = true;
+      if (current->closed) continue;
+      current->closed = true;
 
       for (int dir = 0; dir < 8; ++dir) {
         int nx = current->mx + dx[dir];
@@ -196,8 +266,8 @@ public:
 
         if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
 
-        int n_idx = ny * w + nx;
-        if (closed_set[n_idx]) continue;
+        Node & neighbor = get_node(nx, ny);
+        if (neighbor.closed) continue;
 
         int8_t c = costmap.get_cost(nx, ny);
         if (c >= 80) continue;  // 避开障碍与高语义代价区域
@@ -205,13 +275,12 @@ public:
         double penalty = 1.0 + (c / 25.0);
         double tentative_g = current->g_cost + step_cost[dir] * costmap.resolution * penalty;
 
-        Node * neighbor = &all_nodes[n_idx];
-        if (tentative_g < neighbor->g_cost) {
-          neighbor->parent_mx = current->mx;
-          neighbor->parent_my = current->my;
-          neighbor->g_cost = tentative_g;
-          neighbor->f_cost = tentative_g + heuristic(nx, ny, goal_mx, goal_my) * costmap.resolution;
-          open_set.push(neighbor);
+        if (tentative_g < neighbor.g_cost) {
+          neighbor.parent_mx = current->mx;
+          neighbor.parent_my = current->my;
+          neighbor.g_cost = tentative_g;
+          neighbor.f_cost = tentative_g + heuristic(nx, ny, goal_mx, goal_my) * costmap.resolution;
+          open_set.push(&neighbor);
         }
       }
     }
@@ -219,12 +288,12 @@ public:
     if (!found) return false;
 
     // 回溯路径
-    Node * curr = &all_nodes[goal_my * w + goal_mx];
+    Node * curr = &get_node(goal_mx, goal_my);
     while (curr && curr->parent_mx >= 0) {
       double wx, wy;
       costmap.map_to_world(curr->mx, curr->my, wx, wy);
       out_path.push_back(Eigen::Vector2d(wx, wy));
-      curr = &all_nodes[curr->parent_my * w + curr->parent_mx];
+      curr = &get_node(curr->parent_mx, curr->parent_my);
     }
     double sx, sy;
     costmap.map_to_world(start_mx, start_my, sx, sy);
@@ -242,6 +311,9 @@ private:
     // Octile 启发函数
     return (dx + dy) + (1.414 - 2.0) * std::min(dx, dy);
   }
+
+  std::vector<Node> nodes_pool_;
+  uint32_t run_id_ = 0;
 };
 
 /// @brief TEB 局部轨迹优化器：基于时间弹性带的动态避障与平滑速度输出
@@ -249,6 +321,36 @@ class LocalPlannerTEB
 {
 public:
   LocalPlannerTEB() = default;
+
+  /// @brief 沿全局路径前向搜索前视目标点（基于最近点投影，彻底杜绝回退死锁）
+  Eigen::Vector2d find_lookahead_target(
+    const Eigen::Vector2d & current_pos,
+    const std::vector<Eigen::Vector2d> & global_path,
+    double lookahead_dist = 0.5) const
+  {
+    if (global_path.empty()) return current_pos;
+
+    // 1. 寻找路径上距离当前位置最近的航路点索引
+    std::size_t closest_idx = 0;
+    double min_dist_sq = std::numeric_limits<double>::infinity();
+    for (std::size_t i = 0; i < global_path.size(); ++i) {
+      double d2 = (global_path[i] - current_pos).squaredNorm();
+      if (d2 < min_dist_sq) {
+        min_dist_sq = d2;
+        closest_idx = i;
+      }
+    }
+
+    // 2. 从最近点向后（沿车头行进方向）检索首个满足前视距离的航路点
+    Eigen::Vector2d target = global_path.back();
+    for (std::size_t i = closest_idx; i < global_path.size(); ++i) {
+      if ((global_path[i] - current_pos).norm() >= lookahead_dist) {
+        target = global_path[i];
+        break;
+      }
+    }
+    return target;
+  }
 
   /// @brief 针对当前位姿与全局路径计算局部动态避障速度指令 (v, w)
   bool compute_velocity_commands(
@@ -266,14 +368,8 @@ public:
 
     if (global_path.empty()) return false;
 
-    // 1. 寻找前视目标点 (Lookahead point ~ 0.6m)
-    Eigen::Vector2d target = global_path.back();
-    for (const auto & wp : global_path) {
-      if ((wp - current_pos).norm() > 0.5) {
-        target = wp;
-        break;
-      }
-    }
+    // 1. 寻找前视目标点 (Lookahead point ~ 0.5m)
+    Eigen::Vector2d target = find_lookahead_target(current_pos, global_path, 0.5);
 
     // 2. 检查前方路径是否被动态障碍封死
     Eigen::Vector2d to_target = target - current_pos;

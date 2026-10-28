@@ -206,4 +206,98 @@ TEST(SemanticNavigation, 极端超速行人包络安全边界与边界截断)
   EXPECT_GT(costmap.get_cost(mx, my), 0);
 }
 
+TEST(SemanticNavigation, 动态障碍物代价层独立清空与静态层保留)
+{
+  SemanticCostmap costmap;
+
+  // 1. 在 (1.0, 1.0) 放置静态障碍物
+  costmap.inflate_static_obstacle(1.0, 1.0, 0.25);
+  int mx_stat, my_stat;
+  costmap.world_to_map(1.0, 1.0, mx_stat, my_stat);
+  EXPECT_EQ(costmap.get_static_cost(mx_stat, my_stat), 100);
+  EXPECT_EQ(costmap.get_cost(mx_stat, my_stat), 100);
+
+  // 2. 在 (0.0, 0.0) 注入朝向 +X 的动态行人
+  costmap.inflate_dynamic_pedestrian(0.0, 0.0, 1.0, 0.0, 0.3, 0.6);
+  int mx_dyn, my_dyn;
+  costmap.world_to_map(0.2, 0.0, mx_dyn, my_dyn);
+  EXPECT_GT(costmap.get_dynamic_cost(mx_dyn, my_dyn), 0);
+  EXPECT_GT(costmap.get_cost(mx_dyn, my_dyn), 0);
+
+  // 3. 执行动态层清空（模拟下一感知帧刷新）
+  costmap.clear_dynamic_layer();
+
+  // 动态行人位置代价已彻底释放归零
+  EXPECT_EQ(costmap.get_dynamic_cost(mx_dyn, my_dyn), 0);
+  EXPECT_EQ(costmap.get_cost(mx_dyn, my_dyn), 0);
+
+  // 静态障碍物代价完好保留
+  EXPECT_EQ(costmap.get_static_cost(mx_stat, my_stat), 100);
+  EXPECT_EQ(costmap.get_cost(mx_stat, my_stat), 100);
+
+  // 4. 完全重置
+  costmap.reset();
+  EXPECT_EQ(costmap.get_static_cost(mx_stat, my_stat), 0);
+  EXPECT_EQ(costmap.get_cost(mx_stat, my_stat), 0);
+}
+
+TEST(SemanticNavigation, TEB前视目标前向检索避免起点回退死锁)
+{
+  LocalPlannerTEB teb;
+  std::vector<Eigen::Vector2d> path;
+
+  // 构造一条长 4.0 米的直线全局路径（共 21 个航路点，步长 0.2m）
+  for (int i = 0; i <= 20; ++i) {
+    path.emplace_back(i * 0.2, 0.0);
+  }
+
+  // 小车已行驶至 x = 2.0m 处（已远离起点 2.0m，超出前视距离 0.5m）
+  Eigen::Vector2d current_pos(2.0, 0.0);
+
+  // 检验前视目标点计算：必须在小车前方 (x >= 2.5m)，绝对不能落回到起点 (0.0, 0.0)
+  Eigen::Vector2d target = teb.find_lookahead_target(current_pos, path, 0.5);
+  EXPECT_NEAR(target.x(), 2.6, 0.15);
+  EXPECT_NEAR(target.y(), 0.0, 1e-4);
+  EXPECT_GT(target.x(), current_pos.x());
+
+  // 检验速度解算：朝向车头正前方 (yaw = 0.0)，应给出平稳前向速度 v > 0，角速度 w ~ 0
+  SemanticCostmap costmap;
+  double v = 0.0, w = 0.0;
+  bool blocked = false;
+  bool ok = teb.compute_velocity_commands(current_pos, 0.0, path, costmap, v, w, blocked);
+
+  EXPECT_TRUE(ok);
+  EXPECT_FALSE(blocked);
+  EXPECT_GT(v, 0.2);
+  EXPECT_NEAR(w, 0.0, 0.05);
+}
+
+TEST(SemanticNavigation, AStar规划器连续多次调用节点池版本复用有效性)
+{
+  SemanticCostmap costmap;
+  GlobalPlannerAStar planner;
+
+  std::vector<Eigen::Vector2d> path1, path2, path3;
+
+  // 第一次规划：开阔无障碍直达
+  bool ok1 = planner.plan(costmap, {0.0, 0.0}, {2.0, 0.0}, path1);
+  EXPECT_TRUE(ok1);
+  EXPECT_FALSE(path1.empty());
+
+  // 第二次规划：在直线上加入障碍，验证版本号重置，状态不污染
+  costmap.inflate_static_obstacle(1.0, 0.0, 0.25);
+  bool ok2 = planner.plan(costmap, {0.0, 0.0}, {2.0, 0.0}, path2);
+  EXPECT_TRUE(ok2);
+  for (const auto & pt : path2) {
+    EXPECT_GT((pt - Eigen::Vector2d(1.0, 0.0)).norm(), 0.20);
+  }
+
+  // 第三次规划：完全不同的方向 (0, 0) -> (0, 2.0)
+  bool ok3 = planner.plan(costmap, {0.0, 0.0}, {0.0, 2.0}, path3);
+  EXPECT_TRUE(ok3);
+  EXPECT_NEAR(path3.back().y(), 2.0, 0.05);
+}
+
+
+
 

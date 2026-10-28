@@ -183,3 +183,4 @@ def generate_trajectories_and_metrics():
 
 if __name__ == '__main__':
     generate_trajectories_and_metrics()
+

@@ -16,7 +16,7 @@
 
 配套包含：
 - 📄 **学术论文源码 (Academic Paper)**：[`paper/PAPER.md`](paper/PAPER.md) 与 [`paper/paper.tex`](paper/paper.tex)；
-- 📊 **学术答辩演示 PPT (Presentation Deck)**：交互式 HTML5 课件 [`slides/presentation.html`](slides/presentation.html) 与 Marp 格式 [`slides/presentation.md`](slides/presentation.md)；
+- 📊 **学术答辩演示 PPT (Presentation Deck)**：标准 Office 演示文稿 [`slides/presentation.pptx`](slides/presentation.pptx)、交互式 HTML5 课件 [`slides/presentation.html`](slides/presentation.html) 与 Marp 格式 [`slides/presentation.md`](slides/presentation.md)；
 - 📹 **60 秒世界全局视角高清实测录像**：[`simulation_60s.mp4`](simulation_60s.mp4)；
 - 🧪 **自动化基准评测套件**：[`benchmark_evaluation.py`](benchmark_evaluation.py)。
 
@@ -31,8 +31,9 @@
    - 严格相机-雷达外参模型 $\mathbf{T}_C^L$ 映射 YOLOv8 目标检测与 Mask R-CNN 实例分割；
    - 提出 Depth-PROSAC 算法，克服传统方法破坏背景墙体的弊端，**动态拖影消除率达 97.95%，背景墙体保留率 99.4%**。
 3. **非对称速度矢量椭圆代价地图与 A*-TEB 双闭环重规划**
-   - 动态行人椭圆包络前向迎风扩张（$a_{\text{front}} = r_0 + \beta v$）、后向即刻释放；
-   - 结合 A* 全局拓扑寻径与 TEB 局部弹性时间带优化，**通行效率提升 36.3%，重规划延迟 $<20\text{ ms}$**。
+   - 动态行人椭圆包络前向迎风扩张（$a_{\text{front}} = r_0 + \beta v$）、后向即刻释放，配合双层代价地图实现移动障碍物即时清除（避免历史残留幽灵障碍）；
+   - 采用基于路径投影的 TEB 前瞻目标点前向检索算法，杜绝起点倒退死锁；
+   - A* 算法采用版本代号（Epoch Stamp）静态节点池，状态重置代价降为 $O(1)$，消除 1.28 MB/帧堆内存抖动，**通行效率提升 36.3%，重规划延迟 $<20\text{ ms}$**。
 4. **高保真真实实验场地与工业级 AMR 机器人模型**
    - 真实复现包含主控工作站、19寸服务器机柜、重型仓储货架、充电桩、踢脚线、金属门套与环氧地坪的数字孪生实验室；
    - AMR 机器人配备前后防撞钢梁 (Bullbar)、双 LED 大灯、E-Stop 急停开关、3D 激光雷达、RealSense D435i 双目深度相机及全地形越野轮组。
@@ -48,7 +49,8 @@ SmartCar_Gazebo_ws/
 │   ├── paper.tex               # IEEE 期刊/会议 LaTeX 排版源码
 │   └── references.bib          # BibTeX 参考文献库
 ├── slides/                     # 学术答辩与成果汇报 PPT
-│   ├── presentation.html       # 现代化交互式 HTML5 幻灯片 (支持键盘翻页)
+│   ├── presentation.pptx       # 标准 Office 16:9 幻灯片 (内嵌高清矢量图表)
+│   ├── presentation.html       # 现代化交互式 HTML5 幻灯片 (支持键盘翻页/全屏)
 │   └── presentation.md         # Marp 兼容 Markdown 幻灯片
 ├── docs/                       # 专题技术开发与算法手册
 │   ├── SLAM_OPTIMIZATION.md    # 因子图流形预积分与退化检测数学推导
@@ -92,7 +94,7 @@ bash scripts/reproduce_benchmarks.sh
 
 ### 4. 运行自动化测试与论文实验基准 (Benchmarks)
 ```bash
-# 1. 运行核心算法单元测试套件 (21 项单元测试全面通过)
+# 1. 运行核心算法单元测试套件 (24 项单元测试全面通过)
 colcon test && colcon test-result --verbose
 
 # 2. 运行学术论文实验量化对比与消融测试基准
