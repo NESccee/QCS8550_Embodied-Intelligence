@@ -1,11 +1,13 @@
-# Autonomous Robotics Platform: Multi-Sensor Fusion SLAM & Semantic Dynamic Navigation
-### 面向复杂室内环境的自主移动机器人多传感器融合 SLAM 与语义动态导航系统
+# QCS8550 Embodied Intelligence: Multi-Sensor Fusion SLAM & Semantic Navigation
+### 高通具身智能大赛：面向复杂室内环境的自主移动机器人退化自适应 SLAM 与语义动态导航系统
 
+[![Qualcomm](https://img.shields.io/badge/Qualcomm-QCS8550-D12420?logo=qualcomm)](https://github.com/NESccee/QCS8550_Embodied-Intelligence)
+[![Contest](https://img.shields.io/badge/Competition-高通具身智能大赛-0284C7)](#)
 [![ROS 2](https://img.shields.io/badge/ROS%202-Humble%20Hawksbill-22314E?logo=ros)](https://docs.ros.org/en/humble/)
 [![Gazebo](https://img.shields.io/badge/Simulation-Ignition%20Fortress-orange?logo=gazebo)](https://gazebosim.org/home)
-[![Platform](https://img.shields.io/badge/Architecture-ARM64%20%7C%20x86__64-brightgreen)](#)
+[![Platform](https://img.shields.io/badge/Architecture-ARM64%20(QCS8550)%20%7C%20x86__64-brightgreen)](#)
 [![Paper](https://img.shields.io/badge/Paper-IEEE%20Format-blue)](paper/PAPER.md)
-[![Presentation](https://img.shields.io/badge/Slides-HTML5%20%2F%20Marp-purple)](slides/presentation.html)
+[![Presentation](https://img.shields.io/badge/Slides-HTML5%20%2F%20PPTX-purple)](slides/presentation.pptx)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ---
